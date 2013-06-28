@@ -10,9 +10,9 @@
 	},
 	"repository": {
 	"type": "git",
-	"url": "git://github.com/ysxu/TBD"
+	"url": "git://github.com/ysxu/AzureMobile-Recipe.git"
 	},
-	"homepage": "https://github.com/ysxu/TBD",
+	"homepage": "https://github.com/ysxu/AzureMobile-Recipe",
 	"keywords": [
 	"azure",
 	"mobile",
