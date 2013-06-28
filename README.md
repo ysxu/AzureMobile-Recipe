@@ -1,4 +1,4 @@
-azuremobile-recipe
+AzureMobile-Recipe
 =======================
 
 The core module that runs other Azure Mobile Services recipes.
