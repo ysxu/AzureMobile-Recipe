@@ -4,6 +4,9 @@
  *
  * 
  */
+var scripty = require('azure-scripty');
+var fs = require('fs');
+
 
 // Prompt users to enter information
 // Referece: http://st-on-it.blogspot.com/2011/05/how-to-read-user-input-with-nodejs.html
@@ -27,7 +30,7 @@ exports.ask = function ask(question, format, callback) {
 }
 
 // Create table and performs error handling on existing tablename
-exports.table_create = function tableSetup(myMobileservice, tablename, callback){
+exports.table_create = function table_create(myMobileservice, tablename, callback){
 	var usertablename = tablename;
 	scripty.invoke('mobile table show '+myMobileservice+' '+tablename, function(err, results){
 		if (results.columns!="" || results.scripts!=""){
@@ -67,6 +70,7 @@ exports.table_create = function tableSetup(myMobileservice, tablename, callback)
 	});
 
 }
+
 
 // download files from module to user environment & customization
 // file_download(string, string, array, array, callback)
