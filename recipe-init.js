@@ -2,7 +2,7 @@ var exec = require('child_process').exec;
 var async = require('async');
 var recipe = require('./recipe-functions.js');
 
-module.exports = function (cli) {
+module.exports.init = function (cli) {
 	//var recipe = cli.output;
 	var mobile = cli.category('mobile');
 	mobile.command('recipe [recipename]')
@@ -36,18 +36,16 @@ module.exports = function (cli) {
 				}
 				// execute recipe
 				else{
-					// see if given recipename is in list
-					console.log("\n assuming the recipe does exist");
-					console.log("recipes should always be named azuremobile-recipename");
+					// get recipe
+					var recipe_path = __dirname+'/../azuremobile-'+recipename+'/'+recipename+'.js';
+					var recipe_name = require(recipe_path);
 					
 					// call recipe
-					exec("azuremobile-"+recipename, function (error, stdout, stderr) {
-						if (error) {
-							throw new Error("Azure Mobile Services Recipe "+recipename+" was not found.");
-						}
-						else
-							callback(null, stdout);
-					});
+					recipe_name.use();
+
+					// see if given recipename is in list
+					//console.log("\n assuming the recipe does exist");
+					//console.log("recipes should always be named azuremobile-recipename");
 				}
 			},
 			function(){

@@ -5,7 +5,6 @@
  * 
  */
 
-
 // Prompt users to enter information
 // Referece: http://st-on-it.blogspot.com/2011/05/how-to-read-user-input-with-nodejs.html
 exports.ask = function ask(question, format, callback) {
