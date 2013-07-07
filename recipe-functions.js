@@ -83,7 +83,7 @@ exports.file_download = function(folder, file_name, original, replacement, callb
 	}
 
 	// script location
-	var script = __dirname + '/' + folder + '/' + file_name;
+	var script = __dirname + '/../../' + folder + '/' + file_name;
 
 	// user location
 	var curdir = process.cwd();
