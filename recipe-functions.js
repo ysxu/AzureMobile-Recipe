@@ -4,8 +4,10 @@
  *
  * 
  */
+
 var scripty = require('azure-scripty');
 var fs = require('fs');
+var me = require('./recipe-functions.js');
 
 
 // Prompt users to enter information
@@ -30,11 +32,11 @@ exports.ask = function ask(question, format, callback) {
 }
 
 // Create table and performs error handling on existing tablename
-exports.table_create = function table_create(myMobileservice, tablename, callback){
+exports.table_create = function(myMobileservice, tablename, callback){
 	var usertablename = tablename;
 	scripty.invoke('mobile table show '+myMobileservice+' '+tablename, function(err, results){
 		if (results.columns!="" || results.scripts!=""){
-			ask("Table '"+tablename+"' exists. Enter a new "+tablename+" name or enter 'conti' to continue with exisiting table", /[a-z|A-Z]+/, function(choice) {
+			me.ask("Table '"+tablename+"' exists. Enter a new "+tablename+" name or enter 'conti' to continue with exisiting table", /[a-z|A-Z]+/, function(choice) {
 				if (choice.toLowerCase()!='conti'){
 					usertablename = choice;
 					console.log("New "+tablename+" table '"+usertablename + "' is being created...");
@@ -73,8 +75,8 @@ exports.table_create = function table_create(myMobileservice, tablename, callbac
 
 
 // download files from module to user environment & customization
-// file_download(string, string, array, array, callback)
-exports.file_download = function file_download(folder, file_name, original, replacement, callback){
+// file_download(string, string, array, replacement array, callback)
+exports.file_download = function(folder, file_name, original, replacement, callback){
 
 	if ((original.length != replacement.length)||(!Array.isArray(original))||(!Array.isArray(replacement))){
 		throw new Error("Customization arguments does not satisfy the requirements.");
@@ -88,7 +90,7 @@ exports.file_download = function file_download(folder, file_name, original, repl
   	var filedir = curdir + '/' + folder;
 	var myScript = filedir + "/" + file_name;
 
-	// create directory for file
+	// create client directory for file
 	fs.exists(filedir, function (exists) {
 	  if(!exists){
 	  	fs.mkdir(filedir, function(err){
@@ -109,7 +111,6 @@ exports.file_download = function file_download(folder, file_name, original, repl
 		// replace placeholders
 		var result = data;
 		for (var i=0; i<replacement.length; i++){
-
 			var pattern = new RegExp(original[i], 'g');
 			console.log(pattern);
 			result = result.replace(pattern, replacement[i]);
