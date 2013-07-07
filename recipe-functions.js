@@ -112,7 +112,7 @@ exports.file_download = function(folder, file_name, original, replacement, callb
 		var result = data;
 		for (var i=0; i<replacement.length; i++){
 			var pattern = new RegExp(original[i], 'g');
-			console.log(pattern);
+			//console.log(pattern);
 			result = result.replace(pattern, replacement[i]);
 		}
 
