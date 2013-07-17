@@ -135,7 +135,7 @@ exports.file_download = function (folder, file_name, original, replacement, call
 			function (err) { callback(err); });
 	}
 	else if (folder.length == 1) {
-		me.recipe_file_download(['../../' + folder[0]], file_name, original, replacement, 
+		me.recipe_file_download(['../../' + folder[0], folder[0]], file_name, original, replacement, 
 			function (err) { callback(err); });
 	}
 	else

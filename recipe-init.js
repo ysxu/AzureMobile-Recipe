@@ -61,6 +61,7 @@ module.exports.init = function (cli) {
 
     	var folder = './new_recipe';
     	var new_folder = '';
+    	var azure_recipe = '';
 
     	async.series([
 
@@ -80,10 +81,11 @@ module.exports.init = function (cli) {
 			function(callback){
 				// error check: recipename/command conflicts
 				if ((recipename=='create')||(recipename=='list')) {
-					throw new Error('azure mobile recipe contains the command ' + recipename);	
+					throw new Error('Azure Mobile Recipe contains the command ' + recipename);	
 				}
 				else {
-					new_folder = './' + recipename;
+					azure_recipe = 'azuremobile-'+recipename;
+					new_folder = './' + azure_recipe;
 					callback(null, 'two');
 				}
 			},
@@ -101,7 +103,7 @@ module.exports.init = function (cli) {
 
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename;
+		    	var clientdir = curdir + '/' + azure_recipe;
 		    	// create recipename directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -117,7 +119,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename + '/client_files';
+		    	var clientdir = curdir + '/' + azure_recipe + '/client_files';
 		    	// create client_files directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -133,7 +135,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename + '/server_files';
+		    	var clientdir = curdir + '/' + azure_recipe + '/server_files';
 		    	// create server_files directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -149,7 +151,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename + '/server_files/api';
+		    	var clientdir = curdir + '/' + azure_recipe + '/server_files/api';
 		    	// create api directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -165,7 +167,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename + '/server_files/table';
+		    	var clientdir = curdir + '/' + azure_recipe + '/server_files/table';
 		    	// create table directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -181,7 +183,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 				var curdir = process.cwd();
-		    	var clientdir = curdir + '/' + recipename + '/server_files/shared';
+		    	var clientdir = curdir + '/' + azure_recipe + '/server_files/shared';
 		    	// create shared directory
 				fs.exists(clientdir, function (exists) {
 				  if(!exists){
@@ -215,7 +217,7 @@ module.exports.init = function (cli) {
 	    		});
 		    },
 			function(callback){
-		    	recipe.recipe_file_download([folder, new_folder], ['new_recipe.js'], ['\\$'], [recipename], 
+		    	recipe.recipe_file_download([folder, new_folder], ['new_recipe.js', recipename+'.js'], ['\\$'], [recipename], 
 		    		function(err){
 		    			if (err)
 		    				throw err;
@@ -243,7 +245,7 @@ module.exports.init = function (cli) {
     mobileRecipe.command('use [recipename] [servicename]')
     .usage('[recipename] [servicename] [options]')
     .description('Use a mobile service recipe')
-    .execute(function (servicename, recipename, options, callback) {
+    .execute(function (recipename, servicename, options, callback) {
 
         async.series([
 			function(callback){
@@ -260,7 +262,7 @@ module.exports.init = function (cli) {
 			function(callback){
 				// error check: servicename is entered
 				if (!servicename){
-					recipe.ask("\nService name", /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/, function(name) {
+					recipe.ask("\nMobile Service name", /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/, function(name) {
 						servicename=name;
 						callback(null, 'one');
 					});
@@ -270,7 +272,7 @@ module.exports.init = function (cli) {
 			},
 			function(callback){
 		        // error check: service exists
-		        console.log('Validating mobile service '+ servicename+'...');
+		        console.log('Validating mobile service '+ servicename +'...');
 				scripty.invoke('mobile show '+ servicename, function(err, results) {
 		    		if (err)
 		    			throw err;
@@ -278,7 +280,6 @@ module.exports.init = function (cli) {
 		        	callback(err, results);
 				});
 	    	},
-
 			function(callback){
 				// get recipe
 				var recipe_path = __dirname+'/../azuremobile-'+recipename+'/'+recipename+'.js';
@@ -286,7 +287,7 @@ module.exports.init = function (cli) {
 				
 				// ******************************************** TODO: pass in servicename to recipes
 				// call recipe
-				recipe_name.use();
+				recipe_name.use(servicename);
 			},
 			function(){
 				callback(null);

@@ -1,4 +1,4 @@
-AzureMobile-$
+azuremobile-$
 =======================
 
 TODO: DESCRIPTION FOR RECIPE
