@@ -75,22 +75,25 @@ exports.table_create = function(myMobileservice, tablename, callback){
 
 
 // download files from module to user environment & customization
-// file_download(string, string, array, replacement array, callback)
-exports.file_download = function(folder, file_name, original, replacement, callback){
+// file_download(array, array, array, replacement array, callback)
+// file_download([folder, new_folder], [file_name, new_file_name], original, new_folder, new_file_name, replacement, callback)
+exports.recipe_file_download = function (folder, file_name, original, replacement, callback) {
 
 	if ((original.length != replacement.length)||(!Array.isArray(original))||(!Array.isArray(replacement))){
 		throw new Error("Customization arguments does not satisfy the requirements.");
 	}
 
 	// script location
-	var script = __dirname + '/../../' + folder + '/' + file_name;
+	var script = __dirname + '/' + folder[0] + '/' + file_name[0];
 
 	// user location
 	var curdir = process.cwd();
-  	var filedir = curdir + '/' + folder;
-	var myScript = filedir + "/" + file_name;
+  	var filedir = curdir + '/' + folder[folder.length-1];
+	var myScript = filedir + "/" + file_name[file_name.length-1];
 
+	// assumes the directories are created
 	// create client directory for file
+	// ******************************************************TODO: create directories recursively for users
 	fs.exists(filedir, function (exists) {
 	  if(!exists){
 	  	fs.mkdir(filedir, function(err){
@@ -104,7 +107,6 @@ exports.file_download = function(folder, file_name, original, replacement, callb
 	// reference: http://stackoverflow.com/questions/10058814/get-data-from-fs-readfile
 	// read in module file
 	fs.readFile(script, 'utf8', function (err,data) {
-		//console.log(script);
   		if (err) 
   			throw err;
 
@@ -120,9 +122,23 @@ exports.file_download = function(folder, file_name, original, replacement, callb
   		fs.writeFile(myScript, result, 'utf8', function (err) {
      		if (err) 
      			throw err;
-     		console.log(folder + '/' + file_name + ' is downloaded.');
+     		console.log(file_name + ' is downloaded.');
      		callback(err);
   		});
 	});
+
+}
+
+exports.file_download = function (folder, file_name, original, replacement, callback) {
+	if (folder.length == 2) {
+		me.recipe_file_download(['../../' + folder[0], folder[1]], file_name, original, replacement, 
+			function (err) { callback(err); });
+	}
+	else if (folder.length == 1) {
+		me.recipe_file_download(['../../' + folder[0]], file_name, original, replacement, 
+			function (err) { callback(err); });
+	}
+	else
+		throw new Error('Customization arguments does not satisfy the requirements.');
 
 }

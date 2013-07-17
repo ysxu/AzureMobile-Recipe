@@ -1,0 +1,25 @@
+{
+  "name": "azuremobile-$",
+  "version": "0.1.1",
+  "description": "Azure Mobile Services $ Recipe",
+  "main": "$.js",
+  "licenses": [ { "type": "Apache", "url": "http://www.apache.org/licenses/LICENSE-2.0" } ],
+  "dependencies": {
+    "azure-scripty":"~0.1.0",
+    "async": "~0.1.22",
+    "azuremobile-recipe":"~0.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "TODO: RECIPE GITHUB REPOSITORY"
+  },
+  "homepage": "TODO: RECIPE HOMEPAGE",
+  "keywords": [
+    "azure",
+    "mobile",
+    "$",
+    "recipe"
+  ],
+  "author": "TODO: AUTHOR NAME",
+  "readmeFilename": "README.md"
+}
