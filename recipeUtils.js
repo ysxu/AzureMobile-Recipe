@@ -93,7 +93,7 @@ exports.downloadRecipeFile = function (folder, file_name, original, replacement,
             // create client directory for file
             exports.mkdir_p(filedir, function (err) {
                 if (err)
-                    throw err;
+                    callback(err);
                 callback(err);
             });
         },
@@ -101,7 +101,7 @@ exports.downloadRecipeFile = function (folder, file_name, original, replacement,
             // read in module file
             fs.readFile(script, 'utf8', function (err, data) {
                 if (err)
-                    throw err;
+                    callback(err);
 
                 // update scripts with customizable information
                 var result = data;
@@ -113,7 +113,7 @@ exports.downloadRecipeFile = function (folder, file_name, original, replacement,
                 // write to user environment
                 fs.writeFile(myScript, result, 'utf8', function (err) {
                     if (err)
-                        throw err;
+                        callback(err);
 
                     console.log(path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is downloaded.');
                     callback(err);

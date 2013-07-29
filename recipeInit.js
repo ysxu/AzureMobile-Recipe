@@ -18,7 +18,7 @@
  */
 var exec = require('child_process').exec;
 var async = require('async');
-var recipe = require('./recipe-functions.js');
+var recipe = require('./recipeUtils.js');
 var fs = require('fs');
 var scripty = require('azure-scripty');
 
