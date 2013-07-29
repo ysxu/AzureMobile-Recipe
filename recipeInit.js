@@ -16,12 +16,13 @@
    limitations under the License.
 
  */
+
 var exec = require('child_process').exec;
 var async = require('async');
-var recipe = require('./recipeUtils.js');
-var fs = require('fs');
 var scripty = require('azure-scripty');
-
+var fs = require('fs');
+var path = require('path');
+var recipe = require('./recipeUtils.js');
 
 module.exports.init = function (cli) {
     var mobile = cli.category('mobile');
@@ -39,9 +40,8 @@ module.exports.init = function (cli) {
         .description('List the installed recipes')
         .execute(function (recipename, options, callback) {
 
-            var file_list = fs.readdirSync(__dirname + '/../');
+            var file_list = fs.readdirSync(path.join(__dirname,'..'));
             var recipe_list = [];
-
             for (var i in file_list) {
                 // find azuremobile-recipename
                 if ((file_list[i].substring(0, 12) === "azuremobile-") && (file_list[i] !== "azuremobile-recipe")) {
@@ -53,6 +53,8 @@ module.exports.init = function (cli) {
             for (var i in recipe_list) {
                 console.log(' -' + recipe_list[i]);
             }
+            
+            callback();
         });
 
 
@@ -65,174 +67,82 @@ module.exports.init = function (cli) {
         .description('Retrieve template files for creating a new recipe')
         .execute(function (recipename, options, callback) {
 
-
-            var folder = './new_recipe';
-            var new_folder = '';
             var azure_recipe = '';
-
             async.series([
-
-                /***** recipe name error handling *****/
-
                 function (callback) {
                     // error check: recipename
                     if (!recipename) {
                         recipe.ask("\nRecipe name", recipe.REGEXP, function (name) {
                             recipename = name;
-                            callback(null, 'one');
+                            callback();
                         });
-                    } else
-                        callback(null, 'one');
+                    } else callback();
                 },
                 function (callback) {
-                    // error check: recipename/command conflicts
-                    if ((recipename === 'create') || (recipename === 'list')) {
-                        throw new Error('Azure Mobile Recipe contains the command ' + recipename);
-                    } else {
-                        azure_recipe = 'azuremobile-' + recipename;
-                        new_folder = './' + azure_recipe;
-                        callback(null, 'two');
-                    }
-                },
-                function (callback) {
+                    azure_recipe = 'azuremobile-' + recipename;
                     // check if recipe exists in npm directory
-                    var child = exec('npm owner ls azuremobile-' + recipename, function (error, stdout, stderr) {
-                        if (!error) {
-                            throw new Error('Recipe name azuremobile-' + recipename + ' already exists in npm directory');
+                    var child = exec('npm owner ls ' + azure_recipe, function (error, stdout, stderr) {
+                        if (!error) { 
+                            throw new Error('Recipe name ' + azure_recipe + ' already exists in npm directory');
                         }
-                        callback(null, 'three');
-                    });
-                },
-
-                /***** new recipe directories *****/
-
-                function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe;
-                    // create recipename directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
-                            fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
-                            });
-                        } else
-                            callback(null, 'client dir');
+                        callback();
                     });
                 },
                 function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe + '/client_files';
+                    // retrieve and download template files
+                    original = ['\\$'];
+                    replacement = [recipename];
+
+                    // find all new recipe files
+                    recipe.readPath(path.join(__dirname, 'new_recipe'), function (err, results) {
+                        if (err) return callback(err);
+                        files = results;
+                        callback(err, results);
+                    });
+                },
+                function (callback) {
+                    // download all client files and create directories
+                    async.forEachSeries(
+                        files,
+                        function (file, done) {
+                            if (file.file === 'new_recipe.js')
+                            {
+                                recipe.downloadRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file, recipename+'.js'], original, replacement,
+                                    function (err) {
+                                        if (err) return callback(err);
+                                        done(err);
+                                    });
+                            }
+                            else {
+                                recipe.downloadRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file], original, replacement,
+                                    function (err) {
+                                        if (err) return callback(err);
+                                        done(err);
+                                    });
+                            }
+                        },
+                        function (err) {
+                            if (err) return callback(err);
+                            callback();
+                        });
+                },
+                function (callback) {
+                    // new recipe client_files directory
+                    var clientdir = path.join(process.cwd(), azure_recipe, 'client_files');
                     // create client_files directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
+                    fs.stat(clientdir, function (err,stat) {
+                        if (!(stat && stat.isDirectory())) {
                             fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
+                                if (err) return callback(err);
+                                callback();
                             });
-                        } else
-                            callback(null, 'client dir');
+                        } 
+                        else 
+                            callback();
                     });
-                },
-                function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe + '/server_files';
-                    // create server_files directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
-                            fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
-                            });
-                        } else
-                            callback(null, 'client dir');
-                    });
-                },
-                function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe + '/server_files/api';
-                    // create api directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
-                            fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
-                            });
-                        } else
-                            callback(null, 'client dir');
-                    });
-                },
-                function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe + '/server_files/table';
-                    // create table directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
-                            fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
-                            });
-                        } else
-                            callback(null, 'client dir');
-                    });
-                },
-                function (callback) {
-                    var curdir = process.cwd();
-                    var clientdir = curdir + '/' + azure_recipe + '/server_files/shared';
-                    // create shared directory
-                    fs.exists(clientdir, function (exists) {
-                        if (!exists) {
-                            fs.mkdir(clientdir, function (err) {
-                                if (err)
-                                    throw err;
-                                callback(null, 'client dir');
-                            });
-                        } else
-                            callback(null, 'client dir');
-                    });
-                },
-
-                /***** retrieve and download template files *****/
-
-                function (callback) {
-                    recipe.downloadRecipeFile([folder, new_folder], ['package.json'], ['\\$'], [recipename],
-                        function (err) {
-                            if (err)
-                                throw err;
-                            callback(err, 'template file download');
-                        });
-                },
-                function (callback) {
-                    recipe.downloadRecipeFile([folder, new_folder], ['README.md'], ['\\$'], [recipename],
-                        function (err) {
-                            if (err)
-                                throw err;
-                            callback(err, 'template file download');
-                        });
-                },
-                function (callback) {
-                    recipe.downloadRecipeFile([folder, new_folder], ['new_recipe.js', recipename + '.js'], ['\\$'], [recipename],
-                        function (err) {
-                            if (err)
-                                throw err;
-                            callback(err, 'template file download');
-                        });
-                },
-                function (callback) {
-                    recipe.downloadRecipeFile([folder, new_folder], ['LICENSE.txt'], ['\\$'], [recipename],
-                        function (err) {
-                            if (err)
-                                throw err;
-                            callback(err, 'template file download');
-                        });
                 },
                 function () {
-                    process.exit(1);
+                    callback();
                 }
             ]);
         });
@@ -253,40 +163,41 @@ module.exports.init = function (cli) {
                     if (!recipename) {
                         recipe.ask("\nRecipe name", recipe.REGEXP, function (name) {
                             recipename = name;
-                            callback(null, 'one');
+                            callback();
                         });
                     } else
-                        callback(null, 'one');
+                        callback();
                 },
                 function (callback) {
                     // error check: servicename
                     if (!servicename) {
                         recipe.ask("\nMobile Service name", recipe.REGEXP, function (name) {
                             servicename = name;
-                            callback(null, 'one');
+                            callback();
                         });
                     } else
-                        callback(null, 'one');
+                        callback();
                 },
                 function (callback) {
                     // error check: service exists
                     console.log('Validating mobile service ' + servicename + '...');
                     scripty.invoke('mobile show ' + servicename, function (err, results) {
-                        if (err)
-                            throw err;
+                        if (err) return callback(err);
                         console.log('Validated.\n');
-                        callback(err, results);
+                        callback();
                     });
                 },
                 function (callback) {
                     // call recipe
-                    var recipe_path = __dirname + '/../azuremobile-' + recipename + '/' + recipename + '.js';
+                    var recipe_path = path.join(__dirname, '..', 'azuremobile-'+recipename, recipename+'.js');
                     var recipe_name = require(recipe_path);
-
-                    recipe_name.use(servicename);
+                    recipe_name.use(servicename, function (err){
+                        if (err) return callback(err);
+                        callback();
+                    });
                 },
                 function () {
-                    callback(null);
+                    callback();
                 }
             ]);
 
