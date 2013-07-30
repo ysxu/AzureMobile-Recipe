@@ -3,6 +3,21 @@
  *
  *	This is recipe's index script. It includes some common pre-filled function snippets
  *	for table creations, action script uploads, and client file downloads. 
+
+     Copyright YYYY AuthorName
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
  *
  */
 
@@ -15,7 +30,7 @@ var recipe = require('azuremobile-recipe');
 
 
 // function that gets called when users use this recipe from their project directory
-exports.use = function(myMobileservice){
+exports.use = function(myMobileservice, callback){
 
 	// async makes sure all functions run asynchronously
 	async.series([
@@ -23,9 +38,9 @@ exports.use = function(myMobileservice){
 		function(callback){
 
 			// prompt users to enter extra information
-			recipe.ask("Give me extra info", /[a-z|A-Z]+/, function(name) {
+			recipe.ask("Give me extra info", recipe.REGEXP, function(name) {
 				console.log("user input: "+ name);
-				callback(null, name);
+				callback();
 			});
 		
 		},
@@ -36,7 +51,7 @@ exports.use = function(myMobileservice){
 			recipe.table_create(myMobileservice,"table_name", function(err, results){
 				if (err)
 					throw err;
-			    callback(err, results);
+			    callback();
 			});
 
 	    },
@@ -85,11 +100,10 @@ exports.use = function(myMobileservice){
 			// upload script with CLI commands through azure-scripty
 			// equivalent to 'azure mobile script upload <service> <script>'
 			scripty.invoke('mobile script upload ' + myMobileservice + ' '+ myInsertscript, function(err, results) {
-		  		if (err) 
-		  			throw err;
+		  		if (err) return callback(err);
 		  		else{
 		  			console.log("Action script '"+myInsertscript+"' successfully uploaded.\n");
-					callback(null, results);
+					callback();
 		  		}
 			});
 
@@ -102,13 +116,12 @@ exports.use = function(myMobileservice){
 	    	var file_name = 'Leaderboard.cs';
 	    	recipe.file_download(folder, file_name,['\\$','\\%', '\\#'], [myLeaderboard, myResult, myNamespace], 
 	    		function(err){
-	    			if (err)
-	    				throw err;
-	    			callback(err, 'client file download');
+	    			if (err) return callback(err);
+	    			callback();
     		});
 	    },
 	    function(){
-	    	process.exit(1);
+	    	callback();
 	    }
 	]);
 }

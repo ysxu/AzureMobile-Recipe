@@ -4,14 +4,16 @@
  *
  *
  */
-var scripty = require('azure-scripty');
-var fs = require('fs');
-var path = require('path');
-var async = require('async');
+
+exports.scripty = require('azure-scripty');
+exports.async = require('async');
+exports.fs = require('fs');
+exports.path = require('path');
+exports.exec = require('child_process').exec;
 
 // regex constant for user input
 exports.REGEXP = /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/;
-exports.REGYN = /^(y|n|yes|no)$/;
+exports.REGYN = /^(y|n|yes|no)$/i;
 
 // Prompt users to enter information
 // Referece: http://st-on-it.blogspot.com/2011/05/how-to-read-user-input-with-nodejs.html
@@ -59,7 +61,7 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
         throw new Error('invalid permission');
     }
 
-    scripty.invoke('mobile table show ' + myMobileservice + ' ' + tablename, function (err, results) {
+    exports.scripty.invoke('mobile table show ' + myMobileservice + ' ' + tablename, function (err, results) {
         // table exists
         if (results.columns != "" || results.scripts != "") {
             exports.ask("Table '" + tablename + "' exists. Would you like to overwrite?(Y/N)", exports.REGYN, function (choice) {
@@ -68,7 +70,7 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
                         usertablename = name;
                         console.log("New " + tablename + " table '" + usertablename + "' is being created...");
                         // create choice table
-                        scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+                        exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
                             if (err) throw err;
                             else {
                                 console.log("Table '" + usertablename + "' successfully created.\n");
@@ -87,7 +89,7 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
         } 
         else {
             console.log("New " + tablename + " table '" + usertablename + "' is being created...");
-            scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+            exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
                 if (err) throw err;
                 else {
                     console.log("Table '" + usertablename + "' successfully created.\n");
@@ -99,7 +101,7 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
 }
 
 // copy given file from core module to user environment & customize
-// input: [folder, new_folder], [file_name, new_file_name], original, replacement, callback
+// input: recipe_name, [folder, new_folder], [file_name, new_file_name], original, replacement, callback
 exports.copyRecipeFile = function (folder, file_name, original, replacement, callback) {
 
     if ((original.length != replacement.length) || (!Array.isArray(original)) || (!Array.isArray(replacement))) {
@@ -114,7 +116,7 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
     var filedir = curdir + '/' + folder[folder.length - 1];
     var myScript = filedir + "/" + file_name[file_name.length - 1];
 
-    async.series([
+    exports.async.series([
         function (callback) {
             // create client directory for file
             exports.mkdir_p(filedir, function (err) {
@@ -125,10 +127,9 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
         },
         function (callback) {
             // read in module file
-            fs.readFile(script, 'utf8', function (err, data) {
+            exports.fs.readFile(script, 'utf8', function (err, data) {
                 if (err)
                     callback(err);
-
                 // update scripts with customizable information
                 var result = data;
                 for (var i = 0; i < replacement.length; i++) {
@@ -137,11 +138,11 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
                 }
 
                 // write to user environment
-                fs.writeFile(myScript, result, 'utf8', function (err) {
+                exports.fs.writeFile(myScript, result, 'utf8', function (err) {
                     if (err)
                         callback(err);
 
-                    console.log(path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is copied.');
+                    console.log(exports.path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is copied.');
                     callback(err);
                 });
             });
@@ -154,14 +155,15 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
 }
 
 // copy given file from module to user environment & customize
-exports.copyFile = function (folder, file_name, original, replacement, callback) {
+exports.copyFile = function (recipename, folder, file_name, original, replacement, callback) {
+    recipefile = exports.path.join('..',recipename,folder[0]);
     if (folder.length === 2) {
-        exports.copyRecipeFile(['../../' + folder[0], folder[1]], file_name, original, replacement,
+        exports.copyRecipeFile([recipefile, folder[1]], file_name, original, replacement,
             function (err) {
                 callback(err);
             });
     } else if (folder.length === 1) {
-        exports.copyRecipeFile(['../../' + folder[0], folder[0]], file_name, original, replacement,
+        exports.copyRecipeFile([recipefile, folder[0]], file_name, original, replacement,
             function (err) {
                 callback(err);
             });
@@ -175,7 +177,7 @@ exports.copyFile = function (folder, file_name, original, replacement, callback)
 exports.mkdir_p = function (path, callback, mode, position) {
     mode = mode || 0777;
     position = position || 0;
-    parts = require('path').normalize(path).split(/[\\\/]/);
+    parts = exports.path.normalize(path).split(/[\\\/]/);
 
     // exclude files
     if (parts[parts.length - 1].indexOf('.') !== -1) {
@@ -192,11 +194,11 @@ exports.mkdir_p = function (path, callback, mode, position) {
 
     var directory = parts.slice(0, position + 1).join('/');
 
-    fs.stat(directory, function (err) {
+    exports.fs.stat(directory, function (err) {
         if (err === null) {
             exports.mkdir_p(path, callback, mode, position + 1);
         } else {
-            fs.mkdir(directory, mode, function (err) {
+            exports.fs.mkdir(directory, mode, function (err) {
                 if (err) {
                     if (callback) {
                         return callback(err);
@@ -229,7 +231,7 @@ exports.splitPath = function (path) {
 // reference: http://stackoverflow.com/questions/5827612/node-js-fs-readdir-recursive-directory-search
 exports.readPath = function (dir, done) {
     var results = [];
-    fs.readdir(dir, function (err, list) {
+    exports.fs.readdir(dir, function (err, list) {
         if (err)
             return done(err);
         var i = 0;
@@ -238,7 +240,7 @@ exports.readPath = function (dir, done) {
             if (!file) return done(null, results);
             file = dir + '/' + file;
 
-            fs.stat(file, function (err, stat) {
+            exports.fs.stat(file, function (err, stat) {
                 if (stat && stat.isDirectory()) {
                     exports.readPath(file, function (err, res) {
                         results = results.concat(res);

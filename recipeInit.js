@@ -17,11 +17,6 @@
 
  */
 
-var exec = require('child_process').exec;
-var async = require('async');
-var scripty = require('azure-scripty');
-var fs = require('fs');
-var path = require('path');
 var recipe = require('./recipeUtils.js');
 
 module.exports.init = function (cli) {
@@ -40,7 +35,7 @@ module.exports.init = function (cli) {
         .description('List the installed recipes')
         .execute(function (recipename, options, callback) {
 
-            var file_list = fs.readdirSync(path.join(__dirname,'..'));
+            var file_list = recipe.fs.readdirSync(recipe.path.join(__dirname,'..'));
             var recipe_list = [];
             for (var i in file_list) {
                 // find azuremobile-recipename
@@ -49,10 +44,17 @@ module.exports.init = function (cli) {
                 }
             }
 
-            console.log("\nInstalled Azure Mobile Services Recipes:");
-            for (var i in recipe_list) {
-                console.log(' -' + recipe_list[i]);
+            log.info("\n");
+            if (recipe_list.length > 0) {
+                log.info("Installed Recipes:");
+                for (var i in recipe_list) {
+                    log.info(' -' + recipe_list[i]);
+                }
             }
+            else {
+                log.info("No installed recipes found.");
+            }
+            log.info("\n");
             
             callback();
         });
@@ -71,7 +73,7 @@ module.exports.init = function (cli) {
             var original;
             var replacement;
             
-            async.series([
+            recipe.async.series([
                 function (callback) {
                     // error check: recipename
                     if (!recipename) {
@@ -84,7 +86,7 @@ module.exports.init = function (cli) {
                 function (callback) {
                     azure_recipe = 'azuremobile-' + recipename;
                     // check if recipe exists in npm directory
-                    var child = exec('npm owner ls ' + azure_recipe, function (error, stdout, stderr) {
+                    var child = recipe.exec('npm owner ls ' + azure_recipe, function (error, stdout, stderr) {
                         if (!error) { 
                             throw new Error('Recipe name ' + azure_recipe + ' already exists in npm directory');
                         }
@@ -97,7 +99,7 @@ module.exports.init = function (cli) {
                     replacement = [recipename];
 
                     // find all new recipe files
-                    recipe.readPath(path.join(__dirname, 'new_recipe'), function (err, results) {
+                    recipe.readPath(recipe.path.join(__dirname, 'new_recipe'), function (err, results) {
                         if (err) return callback(err);
                         files = results;
                         callback(err, results);
@@ -105,7 +107,7 @@ module.exports.init = function (cli) {
                 },
                 function (callback) {
                     // copy all client files and create directories
-                    async.forEachSeries(
+                    recipe.async.forEachSeries(
                         files,
                         function (file, done) {
                             if (file.file === 'new_recipe.js')
@@ -131,11 +133,11 @@ module.exports.init = function (cli) {
                 },
                 function (callback) {
                     // new recipe client_files directory
-                    var clientdir = path.join(process.cwd(), azure_recipe, 'client_files');
+                    var clientdir = recipe.path.join(process.cwd(), azure_recipe, 'client_files');
                     // create client_files directory
-                    fs.stat(clientdir, function (err,stat) {
+                    recipe.fs.stat(clientdir, function (err,stat) {
                         if (!(stat && stat.isDirectory())) {
-                            fs.mkdir(clientdir, function (err) {
+                            recipe.fs.mkdir(clientdir, function (err) {
                                 if (err) return callback(err);
                                 callback();
                             });
@@ -160,7 +162,7 @@ module.exports.init = function (cli) {
         .description('Use a mobile service recipe')
         .execute(function (recipename, servicename, options, callback) {
 
-            async.series([
+            recipe.async.series([
                 function (callback) {
                     // error check: recipename
                     if (!recipename) {
@@ -183,18 +185,18 @@ module.exports.init = function (cli) {
                 },
                 function (callback) {
                     // error check: service exists
-                    console.log('Validating mobile service ' + servicename + '...');
-                    scripty.invoke('mobile show ' + servicename, function (err, results) {
+                    log.info('Validating mobile service ' + servicename + '...');
+                    recipe.scripty.invoke('mobile show ' + servicename, function (err, results) {
                         if (err) return callback(err);
-                        console.log('Validated.\n');
+                        log.info('Validated.\n');
                         callback();
                     });
                 },
                 function (callback) {
                     // call recipe
-                    var recipe_path = path.join(__dirname, '..', 'azuremobile-'+recipename, recipename+'.js');
+                    var recipe_path = recipe.path.join(__dirname, '..', 'azuremobile-'+recipename, recipename+'.js');
                     var recipe_name = require(recipe_path);
-                    recipe_name.use(servicename, function (err){
+                    recipe_name.use(servicename, log, recipe, function (err){
                         if (err) return callback(err);
                         callback();
                     });
