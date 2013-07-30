@@ -16,25 +16,25 @@ exports.REGEXP = /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/;
 exports.REGYN = /^(y|n|yes|no)$/i;
 
 // Prompt users to enter information
-// Referece: http://st-on-it.blogspot.com/2011/05/how-to-read-user-input-with-nodejs.html
 exports.ask = function (question, format, callback) {
-    var stdin = process.stdin;
-    var stdout = process.stdout;
-
     if ((arguments.length === 2) && (Object.prototype.toString.call(format) === "[object Function]")) {
         callback = format;
         format = exports.REGEXP;
     }
 
+    var stdin = process.stdin;
+    var stdout = process.stdout;
+
     stdin.resume();
     stdout.write(question + ": ");
 
     stdin.once('data', function (data) {
+        
         data = data.toString().trim();
-
         if (format.test(data)) {
             callback(data);
-        } else {
+        } 
+        else {
             stdout.write("Input format does not match \n");
             exports.ask(question, format, callback);
         }
@@ -100,21 +100,24 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
     });
 }
 
+
 // copy given file from core module to user environment & customize
-// input: recipe_name, [folder, new_folder], [file_name, new_file_name], original, replacement, callback
-exports.copyRecipeFile = function (folder, file_name, original, replacement, callback) {
+exports.copyRecipeFile = function (folder, filename, new_folder, new_filename, original, replacement, callback) {
 
     if ((original.length != replacement.length) || (!Array.isArray(original)) || (!Array.isArray(replacement))) {
         throw new Error("Customization arguments does not satisfy the requirements.");
     }
 
     // script location
-    var script = __dirname + '/' + folder[0] + '/' + file_name[0];
+    var script = exports.path.join(__dirname, folder, filename);
+
+    new_folder = new_folder || folder;
+    new_filename = new_filename || filename;
 
     // user location
     var curdir = process.cwd();
-    var filedir = curdir + '/' + folder[folder.length - 1];
-    var myScript = filedir + "/" + file_name[file_name.length - 1];
+    var filedir = exports.path.join(curdir, new_folder);
+    var myScript = exports.path.join(filedir, new_filename);
 
     exports.async.series([
         function (callback) {
@@ -140,9 +143,9 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
                 // write to user environment
                 exports.fs.writeFile(myScript, result, 'utf8', function (err) {
                     if (err)
-                        callback(err);
+                        callback();
 
-                    console.log(exports.path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is copied.');
+                    console.log(exports.path.join(new_folder,new_filename) + ' is copied.');
                     callback(err);
                 });
             });
@@ -155,57 +158,66 @@ exports.copyRecipeFile = function (folder, file_name, original, replacement, cal
 }
 
 // copy given file from module to user environment & customize
-exports.copyFile = function (recipename, folder, file_name, original, replacement, callback) {
-    recipefile = exports.path.join('..',recipename,folder[0]);
-    if (folder.length === 2) {
-        exports.copyRecipeFile([recipefile, folder[1]], file_name, original, replacement,
-            function (err) {
-                callback(err);
-            });
-    } else if (folder.length === 1) {
-        exports.copyRecipeFile([recipefile, folder[0]], file_name, original, replacement,
-            function (err) {
-                callback(err);
-            });
-    } else
-        throw new Error('Customization arguments does not satisfy the requirements.');
+var copyFile = function (recipename, folder, filename, new_folder, new_filename, original, replacement, callback) {
+    var filefolder = exports.path.join('..', recipename, folder);
+    new_folder = new_folder || folder;
+    exports.copyRecipeFile(filefolder, filename, new_folder, new_filename, original, replacement,
+        function (err) {
+            if (err) callback(err);
+            callback(err);
+        });
+}
 
+// copy files from recipename in a files object to user environment
+exports.copyFiles = function (recipename, files, callback) {
+     // copy all client files and create directories
+    exports.async.forEachSeries(
+        files,
+        function (file, done) {
+            copyFile('azuremobile-'+ recipename, file.dir.replace(__dirname,''), file.file, file.new_dir, file.new_file, file.original, file.replacement,
+                function (err) {
+                    if (err) callback(err);
+                    done();
+                });
+        },
+        function (err) {
+            if (err) callback(err);
+            callback();
+        });
 }
 
 // recursively create directories for given path
 // reference https://gist.github.com/bpedro/742162
 exports.mkdir_p = function (path, callback, mode, position) {
+
     mode = mode || 0777;
     position = position || 0;
-    parts = exports.path.normalize(path).split(/[\\\/]/);
 
-    // exclude files
+    // format into array and exclude files
+    parts = exports.path.normalize(path).split(/[\\\/]/);
     if (parts[parts.length - 1].indexOf('.') !== -1) {
         parts.pop();
     }
 
+    // end of recursive directory creation
     if (position >= parts.length) {
-        if (callback) {
-            return callback();
-        } else {
-            return true;
-        }
+        if (callback) return callback();
+        else return;
     }
 
     var directory = parts.slice(0, position + 1).join('/');
-
-    exports.fs.stat(directory, function (err) {
-        if (err === null) {
+    exports.fs.stat(directory, function (err, stat) {
+        if (err === null && stat.isDirectory()) {
+            // continue
             exports.mkdir_p(path, callback, mode, position + 1);
         } else {
+            // create directory
             exports.fs.mkdir(directory, mode, function (err) {
                 if (err) {
-                    if (callback) {
-                        return callback(err);
-                    } else {
-                        throw err;
-                    }
-                } else {
+                    if (callback) return callback(err);
+                    else throw err;
+                } 
+                else {
                     exports.mkdir_p(path, callback, mode, position + 1);
                 }
             });
@@ -229,7 +241,7 @@ exports.splitPath = function (path) {
 
 // recursively return all files in a directory
 // reference: http://stackoverflow.com/questions/5827612/node-js-fs-readdir-recursive-directory-search
-exports.readPath = function (dir, done) {
+exports.readPath = function (dir, origin, done) {
     var results = [];
     exports.fs.readdir(dir, function (err, list) {
         if (err)
@@ -242,12 +254,12 @@ exports.readPath = function (dir, done) {
 
             exports.fs.stat(file, function (err, stat) {
                 if (stat && stat.isDirectory()) {
-                    exports.readPath(file, function (err, res) {
+                    exports.readPath(file, origin, function (err, res) {
                         results = results.concat(res);
                         next();
                     });
                 } else {
-                    results.push(exports.splitPath(file));
+                    results.push(exports.splitPath(file.replace(origin, '')));
                     next();
                 }
             });

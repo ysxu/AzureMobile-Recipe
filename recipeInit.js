@@ -99,10 +99,10 @@ module.exports.init = function (cli) {
                     replacement = [recipename];
 
                     // find all new recipe files
-                    recipe.readPath(recipe.path.join(__dirname, 'new_recipe'), function (err, results) {
+                    recipe.readPath(recipe.path.join(__dirname, 'new_recipe'), __dirname, function (err, results) {
                         if (err) return callback(err);
                         files = results;
-                        callback(err, results);
+                        callback();
                     });
                 },
                 function (callback) {
@@ -110,19 +110,20 @@ module.exports.init = function (cli) {
                     recipe.async.forEachSeries(
                         files,
                         function (file, done) {
+
                             if (file.file === 'new_recipe.js')
                             {
-                                recipe.copyRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file, recipename+'.js'], original, replacement,
+                                recipe.copyRecipeFile(file.dir.replace(__dirname,''), file.file, azure_recipe, recipename+'.js', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
-                                        done(err);
+                                        done();
                                     });
                             }
                             else {
-                                recipe.copyRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file], original, replacement,
+                                recipe.copyRecipeFile(file.dir.replace(__dirname,''), file.file, azure_recipe, '', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
-                                        done(err);
+                                        done();
                                     });
                             }
                         },
