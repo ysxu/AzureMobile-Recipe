@@ -11,12 +11,18 @@ var async = require('async');
 
 // regex constant for user input
 exports.REGEXP = /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/;
+exports.REGYN = /^(y|n|yes|no)$/;
 
 // Prompt users to enter information
 // Referece: http://st-on-it.blogspot.com/2011/05/how-to-read-user-input-with-nodejs.html
 exports.ask = function (question, format, callback) {
     var stdin = process.stdin;
     var stdout = process.stdout;
+
+    if ((arguments.length === 2) && (Object.prototype.toString.call(format) === "[object Function]")) {
+        callback = format;
+        format = exports.REGEXP;
+    }
 
     stdin.resume();
     stdout.write(question + ": ");
@@ -34,35 +40,55 @@ exports.ask = function (question, format, callback) {
 }
 
 // Create table and performs error handling on existing tablename
-exports.createTable = function (myMobileservice, tablename, callback) {
+exports.createTable = function (myMobileservice, tablename, permission, callback) {
     var usertablename = tablename;
+
+    if ((arguments.length === 3) && (Object.prototype.toString.call(permission) === "[object Function]")) {
+        callback = permission;
+        permission = ['application'];
+    }
+
+    // permissions
+    if (permission.length === 1){
+        permission = ' --permissions insert='+ permission[0] +',update='+ permission[0]+',delete='+ permission[0]+',read='+ permission[0];
+    }
+    else if (permission.length === 4){
+        permission = ' --permissions insert='+ permission[0] +',update='+ permission[1]+',delete='+ permission[2]+',read='+ permission[3];
+    }
+    else {
+        throw new Error('invalid permission');
+    }
+
     scripty.invoke('mobile table show ' + myMobileservice + ' ' + tablename, function (err, results) {
+        // table exists
         if (results.columns != "" || results.scripts != "") {
-            exports.ask("Table '" + tablename + "' exists. Enter a new " + tablename + " name or enter 'conti' to continue with exisiting table", /[a-z|A-Z]+/, function (choice) {
-                if (choice.toLowerCase() != 'conti') {
-                    usertablename = choice;
-                    console.log("New " + tablename + " table '" + usertablename + "' is being created...");
-                    // create choice table
-                    scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename, function (err, results) {
-                        if (err)
-                            throw err;
-                        else {
-                            console.log("Table '" + usertablename + "' successfully created.\n");
-                            callback(err, usertablename);
-                        }
+            exports.ask("Table '" + tablename + "' exists. Would you like to overwrite?(Y/N)", exports.REGYN, function (choice) {
+                if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
+                    exports.ask("New " + tablename + " name", exports.REGEXP, function (name) {
+                        usertablename = name;
+                        console.log("New " + tablename + " table '" + usertablename + "' is being created...");
+                        // create choice table
+                        scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+                            if (err) throw err;
+                            else {
+                                console.log("Table '" + usertablename + "' successfully created.\n");
+                                callback(err, usertablename);
+                            }
+                        });
+
                     });
-                } else {
+                } 
+                else if (choice.toLowerCase() === 'y' || choice.toLowerCase() === 'yes') {
                     console.log("Existing table '" + tablename + "' will be used for this module.\n");
                     callback(err, usertablename);
                 }
-
+                else throw new Error('Invalid input');
             });
-        } else {
+        } 
+        else {
             console.log("New " + tablename + " table '" + usertablename + "' is being created...");
-            // create leaderboard table
-            scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename, function (err, results) {
-                if (err)
-                    throw err;
+            scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+                if (err) throw err;
                 else {
                     console.log("Table '" + usertablename + "' successfully created.\n");
                     callback(err, usertablename);
@@ -72,9 +98,9 @@ exports.createTable = function (myMobileservice, tablename, callback) {
     });
 }
 
-// download given file from core module to user environment & customize
-// file_download([folder, new_folder], [file_name, new_file_name], original, replacement, callback)
-exports.downloadRecipeFile = function (folder, file_name, original, replacement, callback) {
+// copy given file from core module to user environment & customize
+// input: [folder, new_folder], [file_name, new_file_name], original, replacement, callback
+exports.copyRecipeFile = function (folder, file_name, original, replacement, callback) {
 
     if ((original.length != replacement.length) || (!Array.isArray(original)) || (!Array.isArray(replacement))) {
         throw new Error("Customization arguments does not satisfy the requirements.");
@@ -115,7 +141,7 @@ exports.downloadRecipeFile = function (folder, file_name, original, replacement,
                     if (err)
                         callback(err);
 
-                    console.log(path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is downloaded.');
+                    console.log(path.join(folder[folder.length - 1], file_name[file_name.length - 1]) + ' is copied.');
                     callback(err);
                 });
             });
@@ -127,15 +153,15 @@ exports.downloadRecipeFile = function (folder, file_name, original, replacement,
 
 }
 
-// download given file from module to user environment & customize
-exports.downloadFile = function (folder, file_name, original, replacement, callback) {
+// copy given file from module to user environment & customize
+exports.copyFile = function (folder, file_name, original, replacement, callback) {
     if (folder.length === 2) {
-        exports.downloadRecipeFile(['../../' + folder[0], folder[1]], file_name, original, replacement,
+        exports.copyRecipeFile(['../../' + folder[0], folder[1]], file_name, original, replacement,
             function (err) {
                 callback(err);
             });
     } else if (folder.length === 1) {
-        exports.downloadRecipeFile(['../../' + folder[0], folder[0]], file_name, original, replacement,
+        exports.copyRecipeFile(['../../' + folder[0], folder[0]], file_name, original, replacement,
             function (err) {
                 callback(err);
             });

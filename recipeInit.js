@@ -59,7 +59,7 @@ module.exports.init = function (cli) {
 
 
     /*
-     * download to user directory recipe templates
+     * copy to user directory recipe templates
      */
 
     mobileRecipe.command('create [recipename]')
@@ -68,6 +68,9 @@ module.exports.init = function (cli) {
         .execute(function (recipename, options, callback) {
 
             var azure_recipe = '';
+            var original;
+            var replacement;
+            
             async.series([
                 function (callback) {
                     // error check: recipename
@@ -89,7 +92,7 @@ module.exports.init = function (cli) {
                     });
                 },
                 function (callback) {
-                    // retrieve and download template files
+                    // retrieve and copy template files
                     original = ['\\$'];
                     replacement = [recipename];
 
@@ -101,20 +104,20 @@ module.exports.init = function (cli) {
                     });
                 },
                 function (callback) {
-                    // download all client files and create directories
+                    // copy all client files and create directories
                     async.forEachSeries(
                         files,
                         function (file, done) {
                             if (file.file === 'new_recipe.js')
                             {
-                                recipe.downloadRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file, recipename+'.js'], original, replacement,
+                                recipe.copyRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file, recipename+'.js'], original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
                                         done(err);
                                     });
                             }
                             else {
-                                recipe.downloadRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file], original, replacement,
+                                recipe.copyRecipeFile([file.dir.replace(__dirname,''), azure_recipe], [file.file], original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
                                         done(err);
