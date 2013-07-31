@@ -17,6 +17,7 @@ exports.REGYN = /^(y|n|yes|no)$/i;
 
 // Prompt users to enter information
 exports.ask = function (question, format, callback) {
+
     if ((arguments.length === 2) && (Object.prototype.toString.call(format) === "[object Function]")) {
         callback = format;
         format = exports.REGEXP;
@@ -29,13 +30,12 @@ exports.ask = function (question, format, callback) {
     stdout.write(question + ": ");
 
     stdin.once('data', function (data) {
-        
         data = data.toString().trim();
         if (format.test(data)) {
             callback(data);
         } 
         else {
-            stdout.write("Input format does not match \n");
+            stdout.write("Input format does not match\n");
             exports.ask(question, format, callback);
         }
     });
@@ -122,7 +122,7 @@ exports.copyRecipeFile = function (folder, filename, new_folder, new_filename, o
     exports.async.series([
         function (callback) {
             // create client directory for file
-            exports.mkdir_p(filedir, function (err) {
+            exports.makeDir(filedir, function (err) {
                 if (err)
                     callback(err);
                 callback(err);
@@ -187,11 +187,14 @@ exports.copyFiles = function (recipename, files, callback) {
 }
 
 // recursively create directories for given path
-// reference https://gist.github.com/bpedro/742162
-exports.mkdir_p = function (path, callback, mode, position) {
+exports.makeDir = function (path, mode, callback) {
+
+    if ((arguments.length === 2) && (Object.prototype.toString.call(mode) === "[object Function]")) {
+        callback = mode;
+        mode = 0777;
+    }
 
     mode = mode || 0777;
-    position = position || 0;
 
     // format into array and exclude files
     parts = exports.path.normalize(path).split(/[\\\/]/);
@@ -199,71 +202,79 @@ exports.mkdir_p = function (path, callback, mode, position) {
         parts.pop();
     }
 
-    // end of recursive directory creation
-    if (position >= parts.length) {
-        if (callback) return callback();
-        else return;
-    }
+    exports.async.forEachSeries(
+        parts,
+        function (file, done) {
+            file = parts.slice(0, parts.indexOf(file)+1).join('/');
 
-    var directory = parts.slice(0, position + 1).join('/');
-    exports.fs.stat(directory, function (err, stat) {
-        if (err === null && stat.isDirectory()) {
-            // continue
-            exports.mkdir_p(path, callback, mode, position + 1);
-        } else {
-            // create directory
-            exports.fs.mkdir(directory, mode, function (err) {
-                if (err) {
-                    if (callback) return callback(err);
-                    else throw err;
-                } 
-                else {
-                    exports.mkdir_p(path, callback, mode, position + 1);
+            exports.fs.stat(file, function (err, stat) {
+                if ((!err) && (stat) && (stat.isDirectory()))
+                    done();
+                else { 
+                    exports.fs.mkdir(file, mode, function (err) {
+                        if (err) {
+                            if (callback) return callback(err);
+                            else throw err;
+                        }
+                        else done();
+                    });
                 }
             });
-        }
-    });
+        },
+        function (err) {
+            if (err) {
+                if (callback) return callback(err);
+                else throw err;
+            }
+            if (callback) callback();
+            else return;
+        });
 }
 
+
 // extract directory and file separately 
-// referece: http://stackoverflow.com/questions/2187256/js-most-optimized-way-to-remove-a-filename-from-a-path-in-a-string
 exports.splitPath = function (path) {
-    var dirPart, filePart;
-    path.replace(/^(.*\/)?([^/]*)$/, function (_, dir, file) {
-        dirPart = dir;
-        filePart = file;
-    });
-    return {
-        dir: dirPart,
-        file: filePart
-    };
+    var pathDir = path;
+    var pathFile = '';
+
+    var parts = exports.path.normalize(path).split(/[\\\/]/);
+
+    if (parts[parts.length - 1].indexOf('.') !== -1) {
+        pathDir = parts.slice(0, parts.length-1).join('/');
+        pathFile = parts[parts.length-1];
+    }
+
+    return { dir: pathDir, file: pathFile };
 };
 
 // recursively return all files in a directory
-// reference: http://stackoverflow.com/questions/5827612/node-js-fs-readdir-recursive-directory-search
-exports.readPath = function (dir, origin, done) {
+exports.readPath = function (path, origin, callback) {
     var results = [];
-    exports.fs.readdir(dir, function (err, list) {
-        if (err)
-            return done(err);
-        var i = 0;
-        (function next() {
-            var file = list[i++];
-            if (!file) return done(null, results);
-            file = dir + '/' + file;
 
-            exports.fs.stat(file, function (err, stat) {
-                if (stat && stat.isDirectory()) {
-                    exports.readPath(file, origin, function (err, res) {
-                        results = results.concat(res);
-                        next();
-                    });
-                } else {
-                    results.push(exports.splitPath(file.replace(origin, '')));
-                    next();
-                }
+    exports.fs.readdir(path, function (err, files) {
+        if (err) return callback(err);
+
+        exports.async.forEachSeries(
+            files,
+            function (file, done) {
+                file = exports.path.join(path, file);
+
+                exports.fs.stat(file, function (err, stat) {
+                    if (stat && stat.isDirectory()) { 
+                        exports.readPath(file, origin, function (err, subresults) {
+                            results = results.concat(subresults);
+                            done();
+                        })   
+                    }
+                    else {
+                        results.push(exports.splitPath(file.replace(origin, '')));
+                        done();
+                    }
+                });
+            },
+            function (err) {
+                if (err) callback(err);
+                callback(null, results);
             });
-
-        })();
-    });
-};
+    })
+}

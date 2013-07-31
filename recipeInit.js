@@ -26,6 +26,7 @@ module.exports.init = function (cli) {
 
     mobileRecipe.description('Commands to use Mobile Services Recipes');
 
+    recipe.log = log;
 
     /*
      * list all globally installed recipes
@@ -48,7 +49,7 @@ module.exports.init = function (cli) {
             if (recipe_list.length > 0) {
                 log.info("Installed Recipes:");
                 for (var i in recipe_list) {
-                    log.info(' -' + recipe_list[i]);
+                    log.data(' -' + recipe_list[i]);
                 }
             }
             else {
@@ -197,7 +198,7 @@ module.exports.init = function (cli) {
                     // call recipe
                     var recipe_path = recipe.path.join(__dirname, '..', 'azuremobile-'+recipename, recipename+'.js');
                     var recipe_name = require(recipe_path);
-                    recipe_name.use(servicename, log, recipe, function (err){
+                    recipe_name.use(servicename, recipe, function (err){
                         if (err) return callback(err);
                         callback();
                     });
