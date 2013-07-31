@@ -1,10 +1,14 @@
 /*
- *	Azure Mobile Services - Recipe - $
  *
  *	This is recipe's index script. It includes some common pre-filled function snippets
- *	for table creations, action script uploads, and client file downloads. 
+ *	for table creations, action script uploads, and client file downloads.
+ *
+ */
 
-     Copyright YYYY AuthorName
+/*
+   Azure Mobile Services - Recipe - $
+
+    Copyright YYYY AuthorName
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,110 +22,70 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
- *
- */
-
-
-// common modules that recipes depend on
-var scripty = require('azure-scripty');
-var fs = require('fs');
-var async = require('async');
-var recipe = require('azuremobile-recipe');
-
+*/
 
 // function that gets called when users use this recipe from their project directory
-exports.use = function(myMobileservice, callback){
+exports.use = function (myMobileservice, recipe, callback) {
 
-	// async makes sure all functions run asynchronously
-	async.series([
+    // async makes sure all functions run asynchronously
+    async.series([
 
-		function(callback){
+        function (callback) {
 
-			// prompt users to enter extra information
-			recipe.ask("Give me extra info", recipe.REGEXP, function(name) {
-				console.log("user input: "+ name);
-				callback();
-			});
-		
-		},
+            // prompt users to enter extra information
+            recipe.ask("Give me extra info", function (name) {
+                console.log("user input: " + name);
+                callback();
+            });
+        },
 
-	    function(callback){
+        function (callback) {
 
-	    	// creates table 'table_name' and resolves naming conflicts 
-			recipe.table_create(myMobileservice,"table_name", function(err, results){
-				if (err)
-					throw err;
-			    callback();
-			});
+            // creates table 'table_name' and resolves naming conflicts 
+            recipe.createTable(myMobileservice, "table_name", function (err, results) {
+                if (err) return callback(err);
+                var resolved_table_name = results;
+                callback();
+            });
+        },
 
-	    },
+        function (callback) {
 
-	    function(callback){
+            // logging
+            recipe.log.info("Copying & Uploading action scripts...")
 
-	    	// upload action script for table 'table_name'
-	    	console.log("Uploading action scripts...")
+            // copying action scripts
+            var action_file = [{
+                dir: '',
+                file: '',
+                new_dir: '',
+                new_file: '',
+                original: [],
+                replacement: []
+            }];
 
-			// script path in recipe
-			var insertscript = __dirname + '/table/table_name.insert.js';
+            recipe.copyFiles(recipename, action_file, function (err) {
+                if (err) return callback(err);
+                callback();
+            });
+        },
 
-			// script path in user's directory
-			var curdir = process.cwd();
-		  	var tabledir = curdir + '/table';
-			var myInsertscript = tabledir+ "/" + table_name + '.insert.js';
+        function (callback) {
 
-			// create folder if directory does not exist in user directory
-			fs.exists(tabledir, function (exists) {
-			  if(!exists){
-			  	fs.mkdir(tabledir, function(err){
-			  		if (err)
-			  			throw err;
-			  	});
-			  }
-			});
+            // upload script with CLI commands through azure-scripty
+            // equivalent to 'azure mobile script upload <service> <script>'
+            recipe.scripty.invoke('mobile script upload ' + myMobileservice + ' table/table_name.insert.js', function (err, results) {
+                if (err) return callback(err);
+                else {
+                    recipe.log.info("Action script '" + myInsertscript + "' successfully uploaded.\n");
+                    callback();
+                }
+            });
 
-			// update scripts
-			fs.readFile(insertscript, 'utf8', function (err,data) {
-		  		if (err) 
-		  			throw err;
+        }
 
-		  		// replace placeholders
-		  		var result = data.replace(/\$/g, myLeaderboard).replace(/\%/g, myResult);
-
-		  		fs.writeFile(myInsertscript, result, 'utf8', function (err) {
-		     		if (err) 
-		     			throw err;
-		  		});
-			});
-
-			// modify uploading script
-			var cut = myInsertscript.indexOf(curdir);
-			myInsertscript = myInsertscript.slice(0, cut) + myInsertscript.slice(cut+curdir.length+1, myInsertscript.length);
-							
-			// upload script with CLI commands through azure-scripty
-			// equivalent to 'azure mobile script upload <service> <script>'
-			scripty.invoke('mobile script upload ' + myMobileservice + ' '+ myInsertscript, function(err, results) {
-		  		if (err) return callback(err);
-		  		else{
-		  			console.log("Action script '"+myInsertscript+"' successfully uploaded.\n");
-					callback();
-		  		}
-			});
-
-	    },
-
-	    // copy client files into user local environments
-	    function(callback){
-	    	console.log("Downloading client files...");
-	    	var folder = 'client_files/Entities';
-	    	var file_name = 'Leaderboard.cs';
-	    	recipe.file_download(folder, file_name,['\\$','\\%', '\\#'], [myLeaderboard, myResult, myNamespace], 
-	    		function(err){
-	    			if (err) return callback(err);
-	    			callback();
-    		});
-	    },
-	    function(){
-	    	callback();
-	    }
-	]);
+        function () {
+            callback();
+        }
+    ]);
 }

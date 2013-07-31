@@ -23,3 +23,8 @@ azure mobile recipe $
 ```
 
 TODO: FUNCTIONALITIES OF RECIPE
+
+## Use it
+```bash
+code snippets
+```

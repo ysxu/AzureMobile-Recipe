@@ -4,7 +4,6 @@
  *
  *
  */
-
 exports.scripty = require('azure-scripty');
 exports.async = require('async');
 exports.fs = require('fs');
@@ -33,8 +32,7 @@ exports.ask = function (question, format, callback) {
         data = data.toString().trim();
         if (format.test(data)) {
             callback(data);
-        } 
-        else {
+        } else {
             stdout.write("Input format does not match\n");
             exports.ask(question, format, callback);
         }
@@ -51,13 +49,11 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
     }
 
     // permissions
-    if (permission.length === 1){
-        permission = ' --permissions insert='+ permission[0] +',update='+ permission[0]+',delete='+ permission[0]+',read='+ permission[0];
-    }
-    else if (permission.length === 4){
-        permission = ' --permissions insert='+ permission[0] +',update='+ permission[1]+',delete='+ permission[2]+',read='+ permission[3];
-    }
-    else {
+    if (permission.length === 1) {
+        permission = ' --permissions insert=' + permission[0] + ',update=' + permission[0] + ',delete=' + permission[0] + ',read=' + permission[0];
+    } else if (permission.length === 4) {
+        permission = ' --permissions insert=' + permission[0] + ',update=' + permission[1] + ',delete=' + permission[2] + ',read=' + permission[3];
+    } else {
         throw new Error('invalid permission');
     }
 
@@ -79,15 +75,12 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
                         });
 
                     });
-                } 
-                else if (choice.toLowerCase() === 'y' || choice.toLowerCase() === 'yes') {
+                } else if (choice.toLowerCase() === 'y' || choice.toLowerCase() === 'yes') {
                     console.log("Existing table '" + tablename + "' will be used for this module.\n");
                     callback(err, usertablename);
-                }
-                else throw new Error('Invalid input');
+                } else throw new Error('Invalid input');
             });
-        } 
-        else {
+        } else {
             console.log("New " + tablename + " table '" + usertablename + "' is being created...");
             exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
                 if (err) throw err;
@@ -145,7 +138,7 @@ exports.copyRecipeFile = function (folder, filename, new_folder, new_filename, o
                     if (err)
                         callback();
 
-                    console.log(exports.path.join(new_folder,new_filename) + ' is copied.');
+                    console.log(exports.path.join(new_folder, new_filename) + ' is copied.');
                     callback(err);
                 });
             });
@@ -170,11 +163,11 @@ var copyFile = function (recipename, folder, filename, new_folder, new_filename,
 
 // copy files from recipename in a files object to user environment
 exports.copyFiles = function (recipename, files, callback) {
-     // copy all client files and create directories
+    // copy all client files and create directories
     exports.async.forEachSeries(
         files,
         function (file, done) {
-            copyFile('azuremobile-'+ recipename, file.dir.replace(__dirname,''), file.file, file.new_dir, file.new_file, file.original, file.replacement,
+            copyFile('azuremobile-' + recipename, file.dir.replace(__dirname, ''), file.file, file.new_dir, file.new_file, file.original, file.replacement,
                 function (err) {
                     if (err) callback(err);
                     done();
@@ -205,18 +198,17 @@ exports.makeDir = function (path, mode, callback) {
     exports.async.forEachSeries(
         parts,
         function (file, done) {
-            file = parts.slice(0, parts.indexOf(file)+1).join('/');
+            file = parts.slice(0, parts.indexOf(file) + 1).join('/');
 
             exports.fs.stat(file, function (err, stat) {
                 if ((!err) && (stat) && (stat.isDirectory()))
                     done();
-                else { 
+                else {
                     exports.fs.mkdir(file, mode, function (err) {
                         if (err) {
                             if (callback) return callback(err);
                             else throw err;
-                        }
-                        else done();
+                        } else done();
                     });
                 }
             });
@@ -240,11 +232,14 @@ exports.splitPath = function (path) {
     var parts = exports.path.normalize(path).split(/[\\\/]/);
 
     if (parts[parts.length - 1].indexOf('.') !== -1) {
-        pathDir = parts.slice(0, parts.length-1).join('/');
-        pathFile = parts[parts.length-1];
+        pathDir = parts.slice(0, parts.length - 1).join('/');
+        pathFile = parts[parts.length - 1];
     }
 
-    return { dir: pathDir, file: pathFile };
+    return {
+        dir: pathDir,
+        file: pathFile
+    };
 };
 
 // recursively return all files in a directory
@@ -260,13 +255,12 @@ exports.readPath = function (path, origin, callback) {
                 file = exports.path.join(path, file);
 
                 exports.fs.stat(file, function (err, stat) {
-                    if (stat && stat.isDirectory()) { 
+                    if (stat && stat.isDirectory()) {
                         exports.readPath(file, origin, function (err, subresults) {
                             results = results.concat(subresults);
                             done();
-                        })   
-                    }
-                    else {
+                        })
+                    } else {
                         results.push(exports.splitPath(file.replace(origin, '')));
                         done();
                     }

@@ -16,7 +16,6 @@
    limitations under the License.
 
  */
-
 var recipe = require('./recipeUtils.js');
 
 module.exports.init = function (cli) {
@@ -36,7 +35,7 @@ module.exports.init = function (cli) {
         .description('List the installed recipes')
         .execute(function (recipename, options, callback) {
 
-            var file_list = recipe.fs.readdirSync(recipe.path.join(__dirname,'..'));
+            var file_list = recipe.fs.readdirSync(recipe.path.join(__dirname, '..'));
             var recipe_list = [];
             for (var i in file_list) {
                 // find azuremobile-recipename
@@ -51,12 +50,11 @@ module.exports.init = function (cli) {
                 for (var i in recipe_list) {
                     log.data(' -' + recipe_list[i]);
                 }
-            }
-            else {
+            } else {
                 log.info("No installed recipes found.");
             }
             log.info("\n");
-            
+
             callback();
         });
 
@@ -73,7 +71,7 @@ module.exports.init = function (cli) {
             var azure_recipe = '';
             var original;
             var replacement;
-            
+
             recipe.async.series([
                 function (callback) {
                     // error check: recipename
@@ -88,7 +86,7 @@ module.exports.init = function (cli) {
                     azure_recipe = 'azuremobile-' + recipename;
                     // check if recipe exists in npm directory
                     var child = recipe.exec('npm owner ls ' + azure_recipe, function (error, stdout, stderr) {
-                        if (!error) { 
+                        if (!error) {
                             throw new Error('Recipe name ' + azure_recipe + ' already exists in npm directory');
                         }
                         callback();
@@ -112,16 +110,14 @@ module.exports.init = function (cli) {
                         files,
                         function (file, done) {
 
-                            if (file.file === 'new_recipe.js')
-                            {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname,''), file.file, azure_recipe, recipename+'.js', original, replacement,
+                            if (file.file === 'new_recipe.js') {
+                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azure_recipe, recipename + '.js', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
                                         done();
                                     });
-                            }
-                            else {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname,''), file.file, azure_recipe, '', original, replacement,
+                            } else {
+                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azure_recipe, '', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
                                         done();
@@ -137,14 +133,13 @@ module.exports.init = function (cli) {
                     // new recipe client_files directory
                     var clientdir = recipe.path.join(process.cwd(), azure_recipe, 'client_files');
                     // create client_files directory
-                    recipe.fs.stat(clientdir, function (err,stat) {
+                    recipe.fs.stat(clientdir, function (err, stat) {
                         if (!(stat && stat.isDirectory())) {
                             recipe.fs.mkdir(clientdir, function (err) {
                                 if (err) return callback(err);
                                 callback();
                             });
-                        } 
-                        else 
+                        } else
                             callback();
                     });
                 },
@@ -196,9 +191,9 @@ module.exports.init = function (cli) {
                 },
                 function (callback) {
                     // call recipe
-                    var recipe_path = recipe.path.join(__dirname, '..', 'azuremobile-'+recipename, recipename+'.js');
+                    var recipe_path = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
                     var recipe_name = require(recipe_path);
-                    recipe_name.use(servicename, recipe, function (err){
+                    recipe_name.use(servicename, recipe, function (err) {
                         if (err) return callback(err);
                         callback();
                     });
