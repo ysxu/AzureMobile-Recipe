@@ -43,7 +43,7 @@ exports.validate = function (msg, current, format, callback) {
     if (current && format.test(current))
         callback(current);
     else {
-        if (current){
+        if (current) {
             log.warn('Unable to recognize input format');
         }
         exports.ask(msg, format, callback);
@@ -54,20 +54,19 @@ exports.validate = function (msg, current, format, callback) {
 // createTable(string, string, json object with )
 exports.createTable = function (myMobileservice, tablename, permission, callback) {
     var usertablename = tablename,
-        progress; 
+        progress;
 
     if ((arguments.length === 3) && (Object.prototype.toString.call(permission) === "[object Function]")) {
         callback = permission;
         permission = {
-            tableInsert:'application',
-            tableUpdate:'application',
-            tableDelete:'application',
-            tableRead:'application'
+            tableInsert: 'application',
+            tableUpdate: 'application',
+            tableDelete: 'application',
+            tableRead: 'application'
         };
     }
 
-    permission = '--permissions insert=' + permission.tableInsert + ',update=' + permission.tableUpdate 
-                + ',delete=' + permission.tableDelete + ',read=' + permission.tableRead;
+    permission = '--permissions insert=' + permission.tableInsert + ',update=' + permission.tableUpdate + ',delete=' + permission.tableDelete + ',read=' + permission.tableRead;
 
     log.info('');
     progress = exports.cli.progress('Checking availability for table name \'' + tablename + '\'');
@@ -134,43 +133,43 @@ exports.copyRecipeFile = function (dir, file, newDir, newFile, original, replace
     var myScript = exports.path.join(filedir, newFile);
 
     exports.async.series([
-        function (callback) {
-            // create client directory for file
-            exports.makeDir(filedir, function (err) {
-                if (err) return callback(err);
-                callback();
-            });
-        },
-        function (callback) {
-            if (original && replacement) {
-                // read in module file
-                exports.fs.readFile(script, 'utf8', function (err, data) {
+            function (callback) {
+                // create client directory for file
+                exports.makeDir(filedir, function (err) {
                     if (err) return callback(err);
-                    // update scripts with customizable information
-                    var result = data;
-                    for (var i = 0; i < replacement.length; i++) {
-                        var pattern = new RegExp(original[i], 'g');
-                        result = result.replace(pattern, replacement[i]);
-                    }
-                    // write to user environment
-                    exports.fs.writeFile(myScript, result, 'utf8', function (err) {
-                        if (err) return callback(err);
-                        callback();
-                    });
+                    callback();
                 });
-            }
-            else {
-                // read in module file
-                exports.fs.readFile(script, function (err, data) {
-                    if (err) return callback(err);
-                    exports.fs.writeFile(myScript, data, function (err) {
+            },
+            function (callback) {
+                if (original && replacement) {
+                    // read in module file
+                    exports.fs.readFile(script, 'utf8', function (err, data) {
                         if (err) return callback(err);
-                        callback();
+                        // update scripts with customizable information
+                        var result = data;
+                        for (var i = 0; i < replacement.length; i++) {
+                            var pattern = new RegExp(original[i], 'g');
+                            result = result.replace(pattern, replacement[i]);
+                        }
+                        // write to user environment
+                        exports.fs.writeFile(myScript, result, 'utf8', function (err) {
+                            if (err) return callback(err);
+                            callback();
+                        });
                     });
-                });
+                } else {
+                    // read in module file
+                    exports.fs.readFile(script, function (err, data) {
+                        if (err) return callback(err);
+                        exports.fs.writeFile(myScript, data, function (err) {
+                            if (err) return callback(err);
+                            callback();
+                        });
+                    });
+                }
             }
-        }],
-        function(err, results) {
+        ],
+        function (err, results) {
             if (err) throw err;
             callback();
         });
@@ -201,9 +200,9 @@ exports.copyFiles = function (recipename, files, callback, display) {
         },
         function (err) {
             if (err) callback(err);
-            if (display !== false){
+            if (display !== false) {
                 log.info('');
-                log.table(files, function(row, s) {
+                log.table(files, function (row, s) {
                     row.cell('Files copied', exports.path.join(s.dir.replace(__dirname, ''), s.file));
                 });
                 log.info('');

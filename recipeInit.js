@@ -50,7 +50,7 @@ module.exports.init = function (cli) {
             // list recipes
             log.info("");
             if (recipeList.length > 0) {
-                log.table(recipeList, function(row, s) {
+                log.table(recipeList, function (row, s) {
                     row.cell('Installed Recipes', s);
                 });
             } else {
@@ -76,92 +76,90 @@ module.exports.init = function (cli) {
                 files;
 
             recipe.async.series([
-                function (callback) {
-                    // error check: recipe name
-                    recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
-                        recipename = name.toLowerCase();
-                        callback();
-                    });
-                },
-                function (callback) {
-                    azureRecipe = 'azuremobile-' + recipename;
-                    // check if recipe exists in npm directory
-                    var progress = cli.progress('Checking recipe name availability');
-                    recipe.exec('npm owner ls ' + azureRecipe, function (error, stdout, stderr) {
-                        if (!error) {
-                            throw new Error('Recipe name ' + azureRecipe + ' already exists in npm directory');
-                        }
-                        progress.end();
-                        // DELETE DEBUG FILE TO DOO**************************************************************************
-                        callback();
-                    });
-                },
-                function (callback) {
-                    // retrieve and copy template files
-                    original = ['\\$'];
-                    replacement = [recipename];
-                    // find all new recipe files
-                    recipe.readPath(recipe.path.join(__dirname, 'newRecipe'), __dirname, function (err, results) {
-                        if (err) return callback(err);
-                        files = results;
-                        callback();
-                    });
-                },
-                function (callback) {
-                    // copy all client files and create directories
-                    recipe.async.forEachSeries(
-                        files,
-                        function (file, done) {
-                            if (file.file === 'newRecipe.js') {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, recipename + '.js', original, replacement,
-                                    function (err) {
-                                        if (err) return callback(err);
-                                        file.file = recipename + '.js';
-                                        done();
-                                    });
-                            } else {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, '', original, replacement,
-                                    function (err) {
-                                        if (err) return callback(err);
-                                        done();
-                                    });
+                    function (callback) {
+                        // error check: recipe name
+                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                            recipename = name.toLowerCase();
+                            callback();
+                        });
+                    },
+                    function (callback) {
+                        azureRecipe = 'azuremobile-' + recipename;
+                        // check if recipe exists in npm directory
+                        var progress = cli.progress('Checking recipe name availability');
+                        recipe.exec('npm owner ls ' + azureRecipe, function (error, stdout, stderr) {
+                            if (!error) {
+                                throw new Error('Recipe name ' + azureRecipe + ' already exists in npm directory');
                             }
-                        },
-                        function (err) {
-                            if (err) return callback(err);
-                            log.info('');
-                            log.table(files, function(row, s) {
-                                row.cell('Files copied', recipe.path.join(azureRecipe,s.file));
-                            });
+                            progress.end();
+                            // DELETE DEBUG FILE TO DOO**************************************************************************
                             callback();
                         });
-                },
-                function (callback) {
-                    // create useful directories
-                    files = ['client_files'
-                            ,recipe.path.join('server_files', 'shared')
-                            ,recipe.path.join('server_files', 'API')
-                            ,recipe.path.join('server_files', 'table')];
-                    recipe.async.forEachSeries(
-                        files,
-                        function (file, done) {
-                            var pathName = recipe.path.join(process.cwd(), azureRecipe, file);
-                            recipe.makeDir(pathName, function (err) {
+                    },
+                    function (callback) {
+                        // retrieve and copy template files
+                        original = ['\\$'];
+                        replacement = [recipename];
+                        // find all new recipe files
+                        recipe.readPath(recipe.path.join(__dirname, 'newRecipe'), __dirname, function (err, results) {
+                            if (err) return callback(err);
+                            files = results;
+                            callback();
+                        });
+                    },
+                    function (callback) {
+                        // copy all client files and create directories
+                        recipe.async.forEachSeries(
+                            files,
+                            function (file, done) {
+                                if (file.file === 'newRecipe.js') {
+                                    recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, recipename + '.js', original, replacement,
+                                        function (err) {
+                                            if (err) return callback(err);
+                                            file.file = recipename + '.js';
+                                            done();
+                                        });
+                                } else {
+                                    recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, '', original, replacement,
+                                        function (err) {
+                                            if (err) return callback(err);
+                                            done();
+                                        });
+                                }
+                            },
+                            function (err) {
                                 if (err) return callback(err);
-                                done();
+                                log.info('');
+                                log.table(files, function (row, s) {
+                                    row.cell('Files copied', recipe.path.join(azureRecipe, s.file));
+                                });
+                                callback();
                             });
-                        },
-                        function (err) {
-                            if (err) return callback(err);
-                            log.info('');
-                            log.table(files, function(row, s) {
-                                row.cell('Directories created', recipe.path.join(azureRecipe,s));
+                    },
+                    function (callback) {
+                        // create useful directories
+                        files = ['client_files', recipe.path.join('server_files', 'shared'), recipe.path.join('server_files', 'API'), recipe.path.join('server_files', 'table')];
+                        recipe.async.forEachSeries(
+                            files,
+                            function (file, done) {
+                                var pathName = recipe.path.join(process.cwd(), azureRecipe, file);
+                                recipe.makeDir(pathName, function (err) {
+                                    if (err) return callback(err);
+                                    done();
+                                });
+                            },
+                            function (err) {
+                                if (err) return callback(err);
+                                log.info('');
+                                log.table(files, function (row, s) {
+                                    row.cell('Directories created', recipe.path.join(azureRecipe, s));
+                                });
+                                log.info('');
+                                callback();
                             });
-                            log.info('');
-                            callback();
-                        });
-                }], 
-                function(err, results) {
+                    }
+                ],
+                function (err, results) {
                     if (err) throw err;
                     callback();
                 });
@@ -178,39 +176,40 @@ module.exports.init = function (cli) {
         .execute(function (servicename, recipename, options, callback) {
 
             recipe.async.series([
-                function (callback) {
-                    // error check: service name
-                    recipe.validate("Mobile Service name: ", servicename, recipe.REGEXP, function (name) {
-                        servicename = name;
-                        callback();
-                    });
-                },
-                function (callback) {
-                    // error check: service exists
-                    log.info('');
-                    var progress = cli.progress('Validating mobile service: \''+ servicename + '\'');
-                    recipe.scripty.invoke('mobile show ' + servicename, function (err, results) {
-                        progress.end();
-                        if (err) return callback(err);
-                        callback();
-                    });
-                },
-                function (callback) {
-                    // error check: recipe name
-                    recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
-                        recipename = name.toLowerCase();
-                        callback();
-                    });
-                },
-                function (callback) {
-                    // call recipe
-                    var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
-                    require(recipePath).use(servicename, recipe, function (err) {
-                        if (err) return callback(err);
-                        callback();
-                    });
-                }],
-                function(err, results) {
+                    function (callback) {
+                        // error check: service name
+                        recipe.validate("Mobile Service name: ", servicename, recipe.REGEXP, function (name) {
+                            servicename = name;
+                            callback();
+                        });
+                    },
+                    function (callback) {
+                        // error check: service exists
+                        log.info('');
+                        var progress = cli.progress('Validating mobile service: \'' + servicename + '\'');
+                        recipe.scripty.invoke('mobile show ' + servicename, function (err, results) {
+                            progress.end();
+                            if (err) return callback(err);
+                            callback();
+                        });
+                    },
+                    function (callback) {
+                        // error check: recipe name
+                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                            recipename = name.toLowerCase();
+                            callback();
+                        });
+                    },
+                    function (callback) {
+                        // call recipe
+                        var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
+                        require(recipePath).use(servicename, recipe, function (err) {
+                            if (err) return callback(err);
+                            callback();
+                        });
+                    }
+                ],
+                function (err, results) {
                     if (err) throw err;
                     callback();
                 });
