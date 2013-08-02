@@ -25,7 +25,8 @@ module.exports.init = function (cli) {
 
     mobileRecipe.description('Commands to use Mobile Services Recipes');
 
-    recipe.log = log;
+    // help export cli
+    recipe.setCli(cli);
 
     /*
      * list all globally installed recipes
@@ -35,26 +36,27 @@ module.exports.init = function (cli) {
         .description('List the installed recipes')
         .execute(function (recipename, options, callback) {
 
-            var file_list = recipe.fs.readdirSync(recipe.path.join(__dirname, '..'));
-            var recipe_list = [];
-            for (var i in file_list) {
-                // find azuremobile-recipename
-                if ((file_list[i].substring(0, 12) === "azuremobile-") && (file_list[i] !== "azuremobile-recipe")) {
-                    recipe_list.push(file_list[i].slice(12));
+            var fileList = recipe.fs.readdirSync(recipe.path.join(__dirname, '..')),
+                recipeList = [];
+
+            // find all recipes
+            for (var i in fileList) {
+                var match = 'azuremobile-'.length;
+                if ((fileList[i].substring(0, match).toLowerCase() === "azuremobile-") && (fileList[i].toLowerCase() !== "azuremobile-recipe")) {
+                    recipeList.push(fileList[i].slice(match));
                 }
             }
 
-            log.info("\n");
-            if (recipe_list.length > 0) {
-                log.info("Installed Recipes:");
-                for (var i in recipe_list) {
-                    log.data(' -' + recipe_list[i]);
-                }
+            // list recipes
+            log.info("");
+            if (recipeList.length > 0) {
+                log.table(recipeList, function(row, s) {
+                    row.cell('Installed Recipes', s);
+                });
             } else {
                 log.info("No installed recipes found.");
             }
-            log.info("\n");
-
+            log.info("");
             callback();
         });
 
@@ -68,27 +70,29 @@ module.exports.init = function (cli) {
         .description('Retrieve template files for creating a new recipe')
         .execute(function (recipename, options, callback) {
 
-            var azure_recipe = '';
-            var original;
-            var replacement;
+            var azureRecipe = '',
+                original,
+                replacement,
+                files;
 
             recipe.async.series([
                 function (callback) {
-                    // error check: recipename
-                    if (!recipename) {
-                        recipe.ask("\nRecipe name", recipe.REGEXP, function (name) {
-                            recipename = name;
-                            callback();
-                        });
-                    } else callback();
+                    // error check: recipe name
+                    recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                        recipename = name.toLowerCase();
+                        callback();
+                    });
                 },
                 function (callback) {
-                    azure_recipe = 'azuremobile-' + recipename;
+                    azureRecipe = 'azuremobile-' + recipename;
                     // check if recipe exists in npm directory
-                    var child = recipe.exec('npm owner ls ' + azure_recipe, function (error, stdout, stderr) {
+                    var progress = cli.progress('Checking recipe name availability');
+                    recipe.exec('npm owner ls ' + azureRecipe, function (error, stdout, stderr) {
                         if (!error) {
-                            throw new Error('Recipe name ' + azure_recipe + ' already exists in npm directory');
+                            throw new Error('Recipe name ' + azureRecipe + ' already exists in npm directory');
                         }
+                        progress.end();
+                        // DELETE DEBUG FILE TO DOO**************************************************************************
                         callback();
                     });
                 },
@@ -96,9 +100,8 @@ module.exports.init = function (cli) {
                     // retrieve and copy template files
                     original = ['\\$'];
                     replacement = [recipename];
-
                     // find all new recipe files
-                    recipe.readPath(recipe.path.join(__dirname, 'new_recipe'), __dirname, function (err, results) {
+                    recipe.readPath(recipe.path.join(__dirname, 'newRecipe'), __dirname, function (err, results) {
                         if (err) return callback(err);
                         files = results;
                         callback();
@@ -109,15 +112,15 @@ module.exports.init = function (cli) {
                     recipe.async.forEachSeries(
                         files,
                         function (file, done) {
-
-                            if (file.file === 'new_recipe.js') {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azure_recipe, recipename + '.js', original, replacement,
+                            if (file.file === 'newRecipe.js') {
+                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, recipename + '.js', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
+                                        file.file = recipename + '.js';
                                         done();
                                     });
                             } else {
-                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azure_recipe, '', original, replacement,
+                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, '', original, replacement,
                                     function (err) {
                                         if (err) return callback(err);
                                         done();
@@ -126,27 +129,42 @@ module.exports.init = function (cli) {
                         },
                         function (err) {
                             if (err) return callback(err);
+                            log.info('');
+                            log.table(files, function(row, s) {
+                                row.cell('Files copied', recipe.path.join(azureRecipe,s.file));
+                            });
                             callback();
                         });
                 },
                 function (callback) {
-                    // new recipe client_files directory
-                    var clientdir = recipe.path.join(process.cwd(), azure_recipe, 'client_files');
-                    // create client_files directory
-                    recipe.fs.stat(clientdir, function (err, stat) {
-                        if (!(stat && stat.isDirectory())) {
-                            recipe.fs.mkdir(clientdir, function (err) {
+                    // create useful directories
+                    files = ['client_files'
+                            ,recipe.path.join('server_files', 'shared')
+                            ,recipe.path.join('server_files', 'API')
+                            ,recipe.path.join('server_files', 'table')];
+                    recipe.async.forEachSeries(
+                        files,
+                        function (file, done) {
+                            var pathName = recipe.path.join(process.cwd(), azureRecipe, file);
+                            recipe.makeDir(pathName, function (err) {
                                 if (err) return callback(err);
-                                callback();
+                                done();
                             });
-                        } else
+                        },
+                        function (err) {
+                            if (err) return callback(err);
+                            log.info('');
+                            log.table(files, function(row, s) {
+                                row.cell('Directories created', recipe.path.join(azureRecipe,s));
+                            });
+                            log.info('');
                             callback();
-                    });
-                },
-                function () {
+                        });
+                }], 
+                function(err, results) {
+                    if (err) throw err;
                     callback();
-                }
-            ]);
+                });
         });
 
 
@@ -154,54 +172,47 @@ module.exports.init = function (cli) {
      * use recipes
      */
 
-    mobileRecipe.command('use [recipename] [servicename]')
-        .usage('[recipename] [servicename] [options]')
+    mobileRecipe.command('use [servicename] [recipename]')
+        .usage('[servicename] [recipename] [options]')
         .description('Use a mobile service recipe')
-        .execute(function (recipename, servicename, options, callback) {
+        .execute(function (servicename, recipename, options, callback) {
 
             recipe.async.series([
                 function (callback) {
-                    // error check: recipename
-                    if (!recipename) {
-                        recipe.ask("\nRecipe name", recipe.REGEXP, function (name) {
-                            recipename = name;
-                            callback();
-                        });
-                    } else
+                    // error check: service name
+                    recipe.validate("Mobile Service name: ", servicename, recipe.REGEXP, function (name) {
+                        servicename = name;
                         callback();
-                },
-                function (callback) {
-                    // error check: servicename
-                    if (!servicename) {
-                        recipe.ask("\nMobile Service name", recipe.REGEXP, function (name) {
-                            servicename = name;
-                            callback();
-                        });
-                    } else
-                        callback();
+                    });
                 },
                 function (callback) {
                     // error check: service exists
-                    log.info('Validating mobile service ' + servicename + '...');
+                    log.info('');
+                    var progress = cli.progress('Validating mobile service: \''+ servicename + '\'');
                     recipe.scripty.invoke('mobile show ' + servicename, function (err, results) {
+                        progress.end();
                         if (err) return callback(err);
-                        log.info('Validated.\n');
+                        callback();
+                    });
+                },
+                function (callback) {
+                    // error check: recipe name
+                    recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                        recipename = name.toLowerCase();
                         callback();
                     });
                 },
                 function (callback) {
                     // call recipe
-                    var recipe_path = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
-                    var recipe_name = require(recipe_path);
-                    recipe_name.use(servicename, recipe, function (err) {
+                    var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
+                    require(recipePath).use(servicename, recipe, function (err) {
                         if (err) return callback(err);
                         callback();
                     });
-                },
-                function () {
+                }],
+                function(err, results) {
+                    if (err) throw err;
                     callback();
-                }
-            ]);
-
+                });
         });
 };

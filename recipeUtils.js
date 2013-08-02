@@ -14,78 +14,97 @@ exports.exec = require('child_process').exec;
 exports.REGEXP = /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/;
 exports.REGYN = /^(y|n|yes|no)$/i;
 
-// Prompt users to enter information
-exports.ask = function (question, format, callback) {
+// cli functions & logging
+exports.cli;
+var log;
+exports.setCli = function (cli) {
+    exports.cli = cli;
+    log = exports.cli.output;
+}
 
+// Prompt users to enter information
+exports.ask = function (msg, format, callback) {
     if ((arguments.length === 2) && (Object.prototype.toString.call(format) === "[object Function]")) {
         callback = format;
         format = exports.REGEXP;
     }
-
-    var stdin = process.stdin;
-    var stdout = process.stdout;
-
-    stdin.resume();
-    stdout.write(question + ": ");
-
-    stdin.once('data', function (data) {
-        data = data.toString().trim();
-        if (format.test(data)) {
-            callback(data);
+    exports.cli.prompt(msg, function (input) {
+        if (format.test(input)) {
+            callback(input);
         } else {
-            stdout.write("Input format does not match\n");
-            exports.ask(question, format, callback);
+            log.warn('Unable to recognize input format');
+            exports.ask(msg, format, callback);
         }
     });
 }
 
+// Check user input/promt if error or undefined
+exports.validate = function (msg, current, format, callback) {
+    if (current && format.test(current))
+        callback(current);
+    else {
+        if (current){
+            log.warn('Unable to recognize input format');
+        }
+        exports.ask(msg, format, callback);
+    }
+}
+
 // Create table and performs error handling on existing tablename
+// createTable(string, string, json object with )
 exports.createTable = function (myMobileservice, tablename, permission, callback) {
-    var usertablename = tablename;
+    var usertablename = tablename,
+        progress; 
 
     if ((arguments.length === 3) && (Object.prototype.toString.call(permission) === "[object Function]")) {
         callback = permission;
-        permission = ['application'];
+        permission = {
+            tableInsert:'application',
+            tableUpdate:'application',
+            tableDelete:'application',
+            tableRead:'application'
+        };
     }
 
-    // permissions
-    if (permission.length === 1) {
-        permission = ' --permissions insert=' + permission[0] + ',update=' + permission[0] + ',delete=' + permission[0] + ',read=' + permission[0];
-    } else if (permission.length === 4) {
-        permission = ' --permissions insert=' + permission[0] + ',update=' + permission[1] + ',delete=' + permission[2] + ',read=' + permission[3];
-    } else {
-        throw new Error('invalid permission');
-    }
+    permission = '--permissions insert=' + permission.tableInsert + ',update=' + permission.tableUpdate 
+                + ',delete=' + permission.tableDelete + ',read=' + permission.tableRead;
 
+    log.info('');
+    progress = exports.cli.progress('Checking availability for table name \'' + tablename + '\'');
     exports.scripty.invoke('mobile table show ' + myMobileservice + ' ' + tablename, function (err, results) {
         // table exists
-        if (results.columns != "" || results.scripts != "") {
-            exports.ask("Table '" + tablename + "' exists. Would you like to overwrite?(Y/N)", exports.REGYN, function (choice) {
+        progress.end();
+        if (results.columns.length !== 0) {
+            exports.ask("Table '" + tablename + "' exists. Overwrite?(Y/N): ", exports.REGYN, function (choice) {
                 if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
-                    exports.ask("New " + tablename + " name", exports.REGEXP, function (name) {
+                    exports.ask("New " + tablename + " name: ", exports.REGEXP, function (name) {
                         usertablename = name;
-                        console.log("New " + tablename + " table '" + usertablename + "' is being created...");
+                        progress = exports.cli.progress('Creating new table \'' + usertablename + '\'');
                         // create choice table
-                        exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+                        exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + ' ' + permission, function (err, results) {
                             if (err) throw err;
                             else {
-                                console.log("Table '" + usertablename + "' successfully created.\n");
+                                progress.end();
                                 callback(err, usertablename);
                             }
                         });
-
                     });
                 } else if (choice.toLowerCase() === 'y' || choice.toLowerCase() === 'yes') {
-                    console.log("Existing table '" + tablename + "' will be used for this module.\n");
-                    callback(err, usertablename);
+                    log.info("Existing table '" + tablename + "' will be used for this module.");
+                    progress = exports.cli.progress('Updating table permissions');
+                    exports.scripty.invoke('mobile table update ' + myMobileservice + ' ' + usertablename + ' ' + permission, function (err, results) {
+                        if (err) throw err;
+                        progress.end();
+                        callback(err, usertablename);
+                    })
                 } else throw new Error('Invalid input');
             });
         } else {
-            console.log("New " + tablename + " table '" + usertablename + "' is being created...");
-            exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + permission, function (err, results) {
+            progress = exports.cli.progress('Creating new table \'' + usertablename + '\'');
+            exports.scripty.invoke('mobile table create ' + myMobileservice + ' ' + usertablename + ' ' + permission, function (err, results) {
                 if (err) throw err;
                 else {
-                    console.log("Table '" + usertablename + "' successfully created.\n");
+                    progress.end();
                     callback(err, usertablename);
                 }
             });
@@ -95,79 +114,86 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
 
 
 // copy given file from core module to user environment & customize
-exports.copyRecipeFile = function (folder, filename, new_folder, new_filename, original, replacement, callback) {
+exports.copyRecipeFile = function (dir, file, newDir, newFile, original, replacement, callback) {
 
-    if ((original.length != replacement.length) || (!Array.isArray(original)) || (!Array.isArray(replacement))) {
-        throw new Error("Customization arguments does not satisfy the requirements.");
+    if (original && replacement) {
+        if ((original.length != replacement.length) || (!Array.isArray(original)) || (!Array.isArray(replacement))) {
+            throw new Error("Customization arguments does not satisfy the requirements.");
+        }
     }
 
     // script location
-    var script = exports.path.join(__dirname, folder, filename);
+    var script = exports.path.join(__dirname, dir, file);
 
-    new_folder = new_folder || folder;
-    new_filename = new_filename || filename;
+    newDir = newDir || dir;
+    newFile = newFile || file;
 
     // user location
     var curdir = process.cwd();
-    var filedir = exports.path.join(curdir, new_folder);
-    var myScript = exports.path.join(filedir, new_filename);
+    var filedir = exports.path.join(curdir, newDir);
+    var myScript = exports.path.join(filedir, newFile);
 
     exports.async.series([
         function (callback) {
             // create client directory for file
             exports.makeDir(filedir, function (err) {
-                if (err)
-                    callback(err);
-                callback(err);
+                if (err) return callback(err);
+                callback();
             });
         },
         function (callback) {
-            // read in module file
-            exports.fs.readFile(script, 'utf8', function (err, data) {
-                if (err)
-                    callback(err);
-                // update scripts with customizable information
-                var result = data;
-                for (var i = 0; i < replacement.length; i++) {
-                    var pattern = new RegExp(original[i], 'g');
-                    result = result.replace(pattern, replacement[i]);
-                }
-
-                // write to user environment
-                exports.fs.writeFile(myScript, result, 'utf8', function (err) {
-                    if (err)
+            if (original && replacement) {
+                // read in module file
+                exports.fs.readFile(script, 'utf8', function (err, data) {
+                    if (err) return callback(err);
+                    // update scripts with customizable information
+                    var result = data;
+                    for (var i = 0; i < replacement.length; i++) {
+                        var pattern = new RegExp(original[i], 'g');
+                        result = result.replace(pattern, replacement[i]);
+                    }
+                    // write to user environment
+                    exports.fs.writeFile(myScript, result, 'utf8', function (err) {
+                        if (err) return callback(err);
                         callback();
-
-                    console.log(exports.path.join(new_folder, new_filename) + ' is copied.');
-                    callback(err);
+                    });
                 });
-            });
-        },
-        function () {
+            }
+            else {
+                // read in module file
+                exports.fs.readFile(script, function (err, data) {
+                    if (err) return callback(err);
+                    exports.fs.writeFile(myScript, data, function (err) {
+                        if (err) return callback(err);
+                        callback();
+                    });
+                });
+            }
+        }],
+        function(err, results) {
+            if (err) throw err;
             callback();
-        }
-    ]);
-
+        });
 }
 
 // copy given file from module to user environment & customize
-var copyFile = function (recipename, folder, filename, new_folder, new_filename, original, replacement, callback) {
-    var filefolder = exports.path.join('..', recipename, folder);
-    new_folder = new_folder || folder;
-    exports.copyRecipeFile(filefolder, filename, new_folder, new_filename, original, replacement,
+var copyFile = function (recipename, dir, file, newDir, newFile, original, replacement, callback) {
+    var fileDir = exports.path.join('..', recipename, dir);
+    newDir = newDir || dir;
+    exports.copyRecipeFile(fileDir, file, newDir, newFile, original, replacement,
         function (err) {
             if (err) callback(err);
-            callback(err);
+            callback();
         });
 }
 
 // copy files from recipename in a files object to user environment
-exports.copyFiles = function (recipename, files, callback) {
+exports.copyFiles = function (recipename, files, callback, display) {
     // copy all client files and create directories
     exports.async.forEachSeries(
         files,
         function (file, done) {
-            copyFile('azuremobile-' + recipename, file.dir.replace(__dirname, ''), file.file, file.new_dir, file.new_file, file.original, file.replacement,
+            copyFile('azuremobile-' + recipename, file.dir.replace(__dirname, ''), file.file, file.newDir, file.newFile, file.original, file.replacement,
                 function (err) {
                     if (err) callback(err);
                     done();
@@ -175,6 +201,13 @@ exports.copyFiles = function (recipename, files, callback) {
         },
         function (err) {
             if (err) callback(err);
+            if (display !== false){
+                log.info('');
+                log.table(files, function(row, s) {
+                    row.cell('Files copied', exports.path.join(s.dir.replace(__dirname, ''), s.file));
+                });
+                log.info('');
+            }
             callback();
         });
 }
@@ -186,7 +219,6 @@ exports.makeDir = function (path, mode, callback) {
         callback = mode;
         mode = 0777;
     }
-
     mode = mode || 0777;
 
     // format into array and exclude files
@@ -228,7 +260,6 @@ exports.makeDir = function (path, mode, callback) {
 exports.splitPath = function (path) {
     var pathDir = path;
     var pathFile = '';
-
     var parts = exports.path.normalize(path).split(/[\\\/]/);
 
     if (parts[parts.length - 1].indexOf('.') !== -1) {
