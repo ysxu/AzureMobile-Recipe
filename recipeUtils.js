@@ -297,7 +297,7 @@ exports.copyFiles = function (recipename, files, callback, display) {
             if (display !== false) {
                 log.info('');
                 log.table(files, function (row, s) {
-                    row.cell('Files copied', exports.path.join(s.dir.replace(__dirname, ''), s.file));
+                    row.cell('Files copied', exports.path.join(s.dir.replace(__dirname, ''), s.newFile || s.file));
                 });
                 log.info('');
             }

@@ -121,7 +121,7 @@ module.exports.init = function (cli) {
                                 throw new Error('Recipe name ' + azureRecipe + ' already exists in npm directory');
                             }
                             else {
-                                recipe.fs.unlink(recipe.path.join(__dirname,'npm-debug.log'), function (err) {
+                                recipe.fs.unlink(recipe.path.join(process.cwd(),'npm-debug.log'), function (err) {
                                     if (err) 
                                         log.warn('Fail to delete npm-debug.log');
                                 });
