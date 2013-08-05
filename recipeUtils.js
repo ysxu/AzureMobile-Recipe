@@ -50,8 +50,8 @@ exports.validate = function (msg, current, format, callback) {
     }
 }
 
-// Create table and performs error handling on existing tablename
-// createTable(string, string, json object with )
+// Create table and performs error handling on existing table names
+// createTable(string, string, object: {tableInsert: '', tableUpdate: '', tableDelete: '', tableRead: ''}, callback)
 exports.createTable = function (myMobileservice, tablename, permission, callback) {
     var usertablename = tablename,
         progress;
@@ -76,7 +76,7 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
         if (results.columns.length !== 0) {
             exports.ask("Table '" + tablename + "' exists. Overwrite?(Y/N): ", exports.REGYN, function (choice) {
                 if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
-                    exports.ask("New " + tablename + " name: ", exports.REGEXP, function (name) {
+                    exports.ask("New " + tablename + " table name: ", exports.REGEXP, function (name) {
                         usertablename = name;
                         progress = exports.cli.progress('Creating new table \'' + usertablename + '\'');
                         // create choice table
@@ -111,8 +111,101 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
     });
 }
 
+// create a scheduled job with customization and perform error handling on existing job names
+// createJob(string, string, object: {interval: '', intervalUnit: '', startTime: '', status: ''}, callback)
+exports.createJob = function (myMobileservice, jobName, setting, callback) {
+    var userJob = jobName,
+        progress,
+        timeNow = new Date(),
+        jobExists = false;
+    // format time
+    timeNow = timeNow.toISOString();
+
+    if ((arguments.length === 3) && (Object.prototype.toString.call(setting) === "[object Function]")) {
+        callback = setting;
+        setting = {
+            interval: 15,
+            intervalUnit: 'minute',
+            status: 'disabled'
+        };
+    }
+    // default setting
+    setting.interval = setting.interval || 15;
+    setting.intervalUnit = setting.intervalUnit || 'minute';
+    setting.status = setting.status || 'disabled';
+
+    // settings
+    var createSetting = '--interval ' + setting.interval + ' --intervalUnit ' + setting.intervalUnit;
+    if (setting.startTime)
+        createSetting = createSetting + ' --startTime ' + setting.startTime;
+    var updateSetting =  createSetting + ' --status ' + setting.status;
+
+    log.info('');
+    progress = exports.cli.progress('Checking availability for job name \'' + jobName + '\'');
+    exports.scripty.invoke('mobile job list ' + myMobileservice, function (err, results) {
+        for (var i in results) {
+            if (results[i].name === jobName) {
+                jobExists = true;
+            }
+        }
+        progress.end();
+        // naming conflict
+        if (jobExists) {
+            exports.ask("Job '" + jobName + "' exists. Overwrite?(Y/N): ", exports.REGYN, function (choice) {
+                if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
+                    exports.ask("New " + jobName + " job name: ", exports.REGEXP, function (name) {
+                        userJob = name;
+                        progress = exports.cli.progress('Creating new job \'' + userJob + '\'');
+                        // create job
+                        exports.scripty.invoke('mobile job create ' + myMobileservice + ' ' + userJob + ' ' + createSetting, function (err, results) {
+                            progress.end();
+                            if (err) throw err;
+                            else {
+                                // update status
+                                if (setting.status === 'enabled') {
+                                    progress = exports.cli.progress('Enabling job \'' + userJob + '\'');
+                                    exports.scripty.invoke('mobile job update ' + myMobileservice + ' ' + userJob + ' --status enabled', function (err) {
+                                        progress.end();
+                                        if (err) throw err;
+                                        else callback(err, userJob);
+                                    });
+                                } else callback(err, userJob);
+                            }
+                        });
+                    });
+                } else if (choice.toLowerCase() === 'y' || choice.toLowerCase() === 'yes') {
+                    log.info("Existing job '" + userJob + "' will be used for this module.");
+                    progress = exports.cli.progress('Updating job settings');
+                    exports.scripty.invoke('mobile job update ' + myMobileservice + ' ' + userJob + ' ' + updateSetting, function (err, results) {
+                        if (err) throw err;
+                        progress.end();
+                        callback(err, userJob);
+                    });
+                } else throw new Error('Invalid input');
+            });
+        } else {
+            progress = exports.cli.progress('Creating new job \'' + userJob + '\'');
+            exports.scripty.invoke('mobile job create ' + myMobileservice + ' ' + userJob + ' ' + createSetting, function (err, results) {
+                progress.end();
+                if (err) throw err;
+                else {
+                    // update status
+                    if (setting.status === 'enabled') {
+                        progress = exports.cli.progress('Enabling job \'' + userJob + '\'');
+                        exports.scripty.invoke('mobile job update ' + myMobileservice + ' ' + userJob + ' --status enabled', function (err) {
+                            progress.end();
+                            if (err) throw err;
+                            else callback(err, userJob);
+                        });
+                    } else callback(err, userJob);
+                }
+            });
+        }
+    });
+}
 
 // copy given file from core module to user environment & customize
+// for core module usage only
 exports.copyRecipeFile = function (dir, file, newDir, newFile, original, replacement, callback) {
 
     if (original && replacement) {
@@ -186,7 +279,8 @@ var copyFile = function (recipename, dir, file, newDir, newFile, original, repla
         });
 }
 
-// copy files from recipename in a files object to user environment
+// copy files from a globally installed azure mobile recipe module to user current directory
+// copyFiles(string, {dir: '', file: '', newDir: '', newFile: '', original: [], replacement: []}, callback)
 exports.copyFiles = function (recipename, files, callback, display) {
     // copy all client files and create directories
     exports.async.forEachSeries(
@@ -212,6 +306,7 @@ exports.copyFiles = function (recipename, files, callback, display) {
 }
 
 // recursively create directories for given path
+// makeDir(string, num, callback)
 exports.makeDir = function (path, mode, callback) {
 
     if ((arguments.length === 2) && (Object.prototype.toString.call(mode) === "[object Function]")) {
@@ -254,8 +349,8 @@ exports.makeDir = function (path, mode, callback) {
         });
 }
 
-
-// extract directory and file separately 
+// extract directory and file separately
+// splitPath(string)
 exports.splitPath = function (path) {
     var pathDir = path;
     var pathFile = '';
@@ -272,7 +367,8 @@ exports.splitPath = function (path) {
     };
 };
 
-// recursively return all files in a directory
+// recursively return all files in a directory with paths from origin
+// readPath(string, string, callback)
 exports.readPath = function (path, origin, callback) {
     var results = [];
 

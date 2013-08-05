@@ -28,6 +28,35 @@ module.exports.init = function (cli) {
     // help export cli
     recipe.setCli(cli);
 
+
+    /*
+     * testing scheduler wrapper
+     */
+
+    mobileRecipe.command('test')
+        .description('List the installed recipes')
+        .execute(function (recipename, options, callback) {
+
+            var recipe = require('./recipeUtils.js');
+
+            var timeNow = new Date();
+            timeNow = timeNow.toISOString();
+            
+            var setting = {
+                        interval: 4,
+                        intervalUnit: 'hour',
+                        status: 'disabled'
+                    };
+
+            recipe.createJob('mimitriviaservice', 'testtest', setting, function(err, jobname) {
+                if (err) throw err;
+                console.log(jobname);
+                callback();
+            });
+
+        });
+
+
     /*
      * list all globally installed recipes
      */
@@ -91,8 +120,13 @@ module.exports.init = function (cli) {
                             if (!error) {
                                 throw new Error('Recipe name ' + azureRecipe + ' already exists in npm directory');
                             }
-                            progress.end();
-                            // DELETE DEBUG FILE TO DOO**************************************************************************
+                            else {
+                                recipe.fs.unlink(recipe.path.join(__dirname,'npm-debug.log'), function (err) {
+                                    if (err) 
+                                        log.warn('Fail to delete npm-debug.log');
+                                });
+                            }
+                            progress.end();                            
                             callback();
                         });
                     },
