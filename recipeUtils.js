@@ -23,30 +23,41 @@ exports.setCli = function (cli) {
 }
 
 // Prompt users to enter information
-exports.ask = function (msg, format, callback) {
-    if ((arguments.length === 2) && (Object.prototype.toString.call(format) === "[object Function]")) {
-        callback = format;
+// ask(string, regex, string, callback)
+// ask(string, string, callback)
+exports.ask = function (msg, format, errmsg, callback) {
+    if ((arguments.length === 3) && (Object.prototype.toString.call(errmsg) === "[object Function]")) {
+        callback = errmsg;
+        errmsg = format;
         format = exports.REGEXP;
     }
     exports.cli.prompt(msg, function (input) {
         if (format.test(input)) {
             callback(input);
         } else {
-            log.warn('Unable to recognize input format');
-            exports.ask(msg, format, callback);
+            log.warn(errmsg);
+            exports.ask(msg, format, errmsg, callback);
         }
     });
 }
 
 // Check user input/promt if error or undefined
-exports.validate = function (msg, current, format, callback) {
+// validate(string, variable/string, regex, string, callback)
+// validate(string, varaible/string, string, callback)
+exports.validate = function (msg, current, format, errmsg, callback) {
+    if ((arguments.length === 4) && (Object.prototype.toString.call(format) === "[object Function]")) {
+        callback = errmsg;
+        errmsg = format;
+        format = exports.REGEXP;
+    }
+
     if (current && format.test(current))
         callback(current);
     else {
         if (current) {
-            log.warn('Unable to recognize input format');
+            log.warn(errmsg);
         }
-        exports.ask(msg, format, callback);
+        exports.ask(msg, format, errmsg, callback);
     }
 }
 
@@ -66,6 +77,11 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
         };
     }
 
+    permission.tableInsert = permission.tableInsert || 'application';
+    permission.tableUpdate = permission.tableUpdate || 'application';
+    permission.tableDelete = permission.tableDelete || 'application';
+    permission.tableRead = permission.tableRead || 'application';
+
     permission = '--permissions insert=' + permission.tableInsert + ',update=' + permission.tableUpdate + ',delete=' + permission.tableDelete + ',read=' + permission.tableRead;
 
     log.info('');
@@ -74,9 +90,9 @@ exports.createTable = function (myMobileservice, tablename, permission, callback
         // table exists
         progress.end();
         if (results.columns.length !== 0) {
-            exports.ask("Table '" + tablename + "' exists. Overwrite?(Y/N): ", exports.REGYN, function (choice) {
+            exports.ask("Table '" + tablename + "' exists. Use existing?(Y/N): ", exports.REGYN, "Input format not recognized", function (choice) {
                 if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
-                    exports.ask("New " + tablename + " table name: ", exports.REGEXP, function (name) {
+                    exports.ask("New " + tablename + " table name: ", exports.REGEXP, "Table name format not recognized", function (name) {
                         usertablename = name;
                         progress = exports.cli.progress('Creating new table \'' + usertablename + '\'');
                         // create choice table
@@ -151,9 +167,9 @@ exports.createJob = function (myMobileservice, jobName, setting, callback) {
         progress.end();
         // naming conflict
         if (jobExists) {
-            exports.ask("Job '" + jobName + "' exists. Overwrite?(Y/N): ", exports.REGYN, function (choice) {
+            exports.ask("Job '" + jobName + "' exists. Use existing?(Y/N): ", exports.REGYN, "Input format not recognized", function (choice) {
                 if (choice.toLowerCase() === 'n' || choice.toLowerCase() === 'no') {
-                    exports.ask("New " + jobName + " job name: ", exports.REGEXP, function (name) {
+                    exports.ask("New " + jobName + " job name: ", exports.REGEXP, "Job name format not recognized", function (name) {
                         userJob = name;
                         progress = exports.cli.progress('Creating new job \'' + userJob + '\'');
                         // create job
@@ -237,7 +253,15 @@ exports.copyRecipeFile = function (dir, file, newDir, newFile, original, replace
                 if (original && replacement) {
                     // read in module file
                     exports.fs.readFile(script, 'utf8', function (err, data) {
-                        if (err) return callback(err);
+                        if (err) {
+                            exports.fs.readFile(script, function (err, data) {
+                                if (err) return callback(err);
+                                exports.fs.writeFile(myScript, data, function (err) {
+                                    if (err) return callback(err);
+                                    callback();
+                                });
+                            });
+                        }
                         // update scripts with customizable information
                         var result = data;
                         for (var i = 0; i < replacement.length; i++) {
@@ -307,6 +331,7 @@ exports.copyFiles = function (recipename, files, callback, display) {
 
 // recursively create directories for given path
 // makeDir(string, num, callback)
+// makeDir(string, callback)
 exports.makeDir = function (path, mode, callback) {
 
     if ((arguments.length === 2) && (Object.prototype.toString.call(mode) === "[object Function]")) {

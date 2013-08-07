@@ -3,6 +3,7 @@
  *	This is recipe's index script. It includes some common pre-filled function snippets
  *	for table creations, action script uploads, and client file downloads.
  *
+ *
  */
 
 /*
@@ -24,27 +25,53 @@
 
 */
 
-// function that gets called when users use this recipe from their project directory
-exports.use = function (myMobileservice, recipe, callback) {
+// function that gets called when users execute this recipe from their project directory
+exports.execute = function (myMobileservice, recipe, callback) {
 
+    // More function reference: https://github.com/ysxu/AzureMobile-Recipe/blob/master/recipeUtils.js
+
+    // modules provided (recipes can also depend on modules specified in package.json)
+    var scripty = recipe.scripty; // More reference: https://github.com/glennblock/azure-scripty
+    var async = recipe.async; // More reference: https://github.com/caolan/async
+    var fs = recipe.fs;
+    var path = recipe.path;
+    var exec = recipe.exec;
+
+    // logging
+    var log = recipe.cli.output; // log.info, log.warn, log.error
+
+    // regex constant for user input
+    var REGEXP = recipe.REGEXP; // for azure related input: /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/
+    var REGYN = recipe.REGYN; // for yes/no: /^(y|n|yes|no)$/i
+    
     // async makes sure all functions run asynchronously
     async.series([
 
         function (callback) {
 
             // prompt users to enter extra information
-            recipe.ask("Give me extra info", function (name) {
-                console.log("user input: " + name);
+            recipe.ask("Give me extra info", REGEXP, "customized error message" function (name) {
+                console.log("This is the user input: " + name);
                 callback();
             });
         },
 
         function (callback) {
 
-            // creates table 'table_name' and resolves naming conflicts 
-            recipe.createTable(myMobileservice, "table_name", function (err, results) {
+            // creates table 'tableName' and resolves naming conflicts 
+            recipe.createTable(myMobileservice, "tableName", function (err, results) {
                 if (err) return callback(err);
-                var resolved_table_name = results;
+                var resolvedTableName = results;
+                callback();
+            });
+        },
+
+        function (callback) {
+
+            // creates job 'jobName' and resolves naming conflicts 
+            recipe.createJob(myMobileservice, "jobName", function (err, results) {
+                if (err) return callback(err);
+                var resolvedJobName = results;
                 callback();
             });
         },
@@ -52,19 +79,20 @@ exports.use = function (myMobileservice, recipe, callback) {
         function (callback) {
 
             // logging
-            recipe.log.info("Copying & Uploading action scripts...")
+            log.info("Copying & Uploading action scripts...");
 
-            // copying action scripts
-            var action_file = [{
-                dir: '',
-                file: '',
-                new_dir: '',
-                new_file: '',
-                original: [],
-                replacement: []
+            // script info
+            var tableScript = [{
+                dir: 'dir',
+                file: 'file',
+                newDir: 'newDir',
+                newFile: 'newFile',
+                original: ['placeholder'],
+                replacement: ['customizedValue']
             }];
 
-            recipe.copyFiles(recipename, action_file, function (err) {
+            // copy all files in object following the specified info
+            recipe.copyFiles(recipename, tableScript, function (err) {
                 if (err) return callback(err);
                 callback();
             });
@@ -72,20 +100,24 @@ exports.use = function (myMobileservice, recipe, callback) {
 
         function (callback) {
 
+            var myScriptPath = 'server_files/table/resolvedTableName.insert.js';
+
+            // progress log
+            var progress = recipe.cli.progress('Uploading table script \'' + myInsertscript + '\'');
+
             // upload script with CLI commands through azure-scripty
             // equivalent to 'azure mobile script upload <service> <script>'
-            recipe.scripty.invoke('mobile script upload ' + myMobileservice + ' table/table_name.insert.js', function (err, results) {
+            scripty.invoke('mobile script upload ' + myMobileservice + ' table/resolvedTableName.insert.js -f ' + myScriptPath, function (err, results) {
+                progress.end();
                 if (err) return callback(err);
-                else {
-                    recipe.log.info("Action script '" + myInsertscript + "' successfully uploaded.\n");
-                    callback();
-                }
+                callback();
             });
 
         }
+    ],
 
-        function () {
-            callback();
-        }
-    ]);
+    function (err, results) {
+        if (err) throw err;
+        callback();
+    });
 }

@@ -30,34 +30,6 @@ module.exports.init = function (cli) {
 
 
     /*
-     * testing scheduler wrapper
-     */
-
-    mobileRecipe.command('test')
-        .description('List the installed recipes')
-        .execute(function (recipename, options, callback) {
-
-            var recipe = require('./recipeUtils.js');
-
-            var timeNow = new Date();
-            timeNow = timeNow.toISOString();
-            
-            var setting = {
-                        interval: 4,
-                        intervalUnit: 'hour',
-                        status: 'disabled'
-                    };
-
-            recipe.createJob('mimitriviaservice', 'testtest', setting, function(err, jobname) {
-                if (err) throw err;
-                console.log(jobname);
-                callback();
-            });
-
-        });
-
-
-    /*
      * list all globally installed recipes
      */
 
@@ -107,7 +79,7 @@ module.exports.init = function (cli) {
             recipe.async.series([
                     function (callback) {
                         // error check: recipe name
-                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, "Recipe name format not recognized", function (name) {
                             recipename = name.toLowerCase();
                             callback();
                         });
@@ -204,15 +176,15 @@ module.exports.init = function (cli) {
      * use recipes
      */
 
-    mobileRecipe.command('use [servicename] [recipename]')
+    mobileRecipe.command('execute [servicename] [recipename]')
         .usage('[servicename] [recipename] [options]')
-        .description('Use a mobile service recipe')
+        .description('Execute a mobile service recipe')
         .execute(function (servicename, recipename, options, callback) {
 
             recipe.async.series([
                     function (callback) {
                         // error check: service name
-                        recipe.validate("Mobile Service name: ", servicename, recipe.REGEXP, function (name) {
+                        recipe.validate("Mobile Service name: ", servicename, recipe.REGEXP, "Service name format not recognized", function (name) {
                             servicename = name;
                             callback();
                         });
@@ -229,7 +201,7 @@ module.exports.init = function (cli) {
                     },
                     function (callback) {
                         // error check: recipe name
-                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, function (name) {
+                        recipe.validate("Recipe name: ", recipename, recipe.REGEXP, "Recipe name format not recognized", function (name) {
                             recipename = name.toLowerCase();
                             callback();
                         });
@@ -237,7 +209,7 @@ module.exports.init = function (cli) {
                     function (callback) {
                         // call recipe
                         var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
-                        require(recipePath).use(servicename, recipe, function (err) {
+                        require(recipePath).execute(servicename, recipe, function (err) {
                             if (err) return callback(err);
                             callback();
                         });
