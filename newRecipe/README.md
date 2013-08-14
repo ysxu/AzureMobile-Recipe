@@ -2,7 +2,8 @@ azuremobile-$
 =======================
 
 DESCRIPTION FOR RECIPE
-
+Platform:
+Project language:
 
 # Getting started
 

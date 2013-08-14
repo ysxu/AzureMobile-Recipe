@@ -12,7 +12,7 @@ Make sure node.js is installed (install at http://nodejs.org/) as well as npm mo
 ```bash
 npm install -g azure-cli
 ```
-Note: users with Azure CLI installed through the Windows .msi installer will not be able to access recipes at this point of time.
+Note: Azure CLI needs to be installed through npm. Users with Azure CLI installed through the Windows .msi installer will need to uninstall .msi and reintall Azure CLI through npm.
 
 ## Install it
 ```bash
