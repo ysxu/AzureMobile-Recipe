@@ -7,15 +7,17 @@
   "dependencies": {},
   "repository": {
     "type": "git",
-    "url": "TODO: RECIPE GITHUB REPOSITORY"
+    "url": "<TODO: RECIPE GITHUB REPOSITORY>"
   },
-  "homepage": "TODO: RECIPE HOMEPAGE",
+  "homepage": "<TODO: RECIPE HOMEPAGE>",
   "keywords": [
     "azure",
     "mobile",
     "$",
-    "recipe"
+    "recipe",
+    "platform: <TODO: PLATFORM>",
+    "project language: <TODO: LANGUAGE>"
   ],
-  "author": "TODO: AUTHOR NAME",
+  "author": "<TODO: AUTHOR NAME>",
   "readmeFilename": "README.md"
 }
