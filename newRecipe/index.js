@@ -1,7 +1,7 @@
 /*
  *
  *	This is recipe's index script. It includes some common pre-filled function snippets
- *	for table creations, action script uploads, and client file downloads.
+ *	for table creations, script uploads, and client file downloads.
  *
  *
  */
@@ -28,14 +28,17 @@
 // function that gets called when users execute this recipe from their project directory
 exports.execute = function (myMobileservice, recipe, callback) {
 
-    // More function reference: https://github.com/ysxu/AzureMobile-Recipe/blob/master/recipeUtils.js
+    var recipeName = '$', // new recipe
+        resolvedTableName, // for resolving table naming conflict
+        resolvedJobName; // for resolving job naming conflict
 
-    // modules provided (recipes can also depend on modules specified in package.json)
-    var scripty = recipe.scripty; // More reference: https://github.com/glennblock/azure-scripty
-    var async = recipe.async; // More reference: https://github.com/caolan/async
-    var fs = recipe.fs;
-    var path = recipe.path;
-    var exec = recipe.exec;
+    // More function reference: https://github.com/ysxu/AzureMobile-Recipe/blob/master/recipeUtils.js
+    // modules and libraries provided (recipes can also depend on modules specified in package.json)
+    var scripty = recipe.scripty; // reference: https://github.com/glennblock/azure-scripty
+    var async = recipe.async; // reference: https://github.com/caolan/async
+    var fs = recipe.fs; // reference: http://nodejs.org/api/fs.html
+    var path = recipe.path; // reference: http://nodejs.org/api/path.html
+    var exec = recipe.exec; // reference: http://nodejs.org/api/child_process.html#child_process_child_process_exec_command_options_callback
 
     // logging
     var log = recipe.cli.output; // log.info, log.warn, log.error
@@ -44,14 +47,14 @@ exports.execute = function (myMobileservice, recipe, callback) {
     var REGEXP = recipe.REGEXP; // for azure related input: /^[a-zA-Z][0-9a-zA-Z-]*[0-9a-zA-Z]$/
     var REGYN = recipe.REGYN; // for yes/no: /^(y|n|yes|no)$/i
     
-    // async makes sure all functions run asynchronously
+    // async makes sure blocks in function (callback) run asynchronously
     async.series([
 
         function (callback) {
 
             // prompt users to enter extra information
-            recipe.ask("Give me extra info", REGEXP, "customized error message" function (name) {
-                console.log("This is the user input: " + name);
+            recipe.ask("Give me extra info", REGEXP, "customized error message", function (name) {
+                log.info("This is the user input: " + name);
                 callback();
             });
         },
@@ -61,7 +64,7 @@ exports.execute = function (myMobileservice, recipe, callback) {
             // creates table 'tableName' and resolves naming conflicts 
             recipe.createTable(myMobileservice, "tableName", function (err, results) {
                 if (err) return callback(err);
-                var resolvedTableName = results;
+                resolvedTableName = results;
                 callback();
             });
         },
@@ -71,7 +74,7 @@ exports.execute = function (myMobileservice, recipe, callback) {
             // creates job 'jobName' and resolves naming conflicts 
             recipe.createJob(myMobileservice, "jobName", function (err, results) {
                 if (err) return callback(err);
-                var resolvedJobName = results;
+                resolvedJobName = results;
                 callback();
             });
         },
@@ -79,7 +82,7 @@ exports.execute = function (myMobileservice, recipe, callback) {
         function (callback) {
 
             // logging
-            log.info("Copying & Uploading action scripts...");
+            log.info("Copying & Uploading table scripts...");
 
             // script info
             var tableScript = [{
@@ -87,12 +90,13 @@ exports.execute = function (myMobileservice, recipe, callback) {
                 file: 'file',
                 newDir: 'newDir',
                 newFile: 'newFile',
-                original: ['placeholder'],
-                replacement: ['customizedValue']
+                original: ['placeholder1','placeholder2'],
+                replacement: ['customizedValue1', 'customizedValue2']
             }];
 
-            // copy all files in object following the specified info
-            recipe.copyFiles(recipename, tableScript, function (err) {
+            // copy all files in above object following the specified info from the given globally installed recipe directory to user working directory 
+            // and perform placeholder customizations to prepare scripts for upload and usage
+            recipe.copyFiles(recipeName, tableScript, function (err) {
                 if (err) return callback(err);
                 callback();
             });
@@ -100,16 +104,17 @@ exports.execute = function (myMobileservice, recipe, callback) {
 
         function (callback) {
 
+            // path to table script file
             var myScriptPath = 'server_files/table/resolvedTableName.insert.js';
 
             // progress log
             var progress = recipe.cli.progress('Uploading table script \'' + myInsertscript + '\'');
 
             // upload script with CLI commands through azure-scripty
-            // equivalent to 'azure mobile script upload <service> <script>'
+            // equivalent to 'azure mobile script upload <service> <script> -f <scriptPath>'
             scripty.invoke('mobile script upload ' + myMobileservice + ' table/resolvedTableName.insert.js -f ' + myScriptPath, function (err, results) {
-                progress.end();
                 if (err) return callback(err);
+                progress.end();
                 callback();
             });
 
@@ -117,7 +122,9 @@ exports.execute = function (myMobileservice, recipe, callback) {
     ],
 
     function (err, results) {
+        // if error occurs at any previous step, callback(error) gets returned and thrown here
         if (err) throw err;
         callback();
     });
+
 }

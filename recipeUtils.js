@@ -24,20 +24,33 @@ exports.setCli = function (cli) {
 
 // Prompt users to enter information
 // ask(string, regex, string, callback)
+// regex will be defaulted to exports.REGEXP, to allow any input, enter null for regex
 // ask(string, string, callback)
 exports.ask = function (msg, format, errmsg, callback) {
+    // format message to satisfy cli.prompt parameter format
+    if (msg.indexOf(': ', msg.length - ': '.length) === -1) {
+        if (msg.indexOf(':', msg.length - ':'.length) === -1)
+            msg = msg + ': ';
+        else
+            msg = msg + ' ';
+    }
+
     if ((arguments.length === 3) && (Object.prototype.toString.call(errmsg) === "[object Function]")) {
         callback = errmsg;
         errmsg = format;
         format = exports.REGEXP;
     }
     exports.cli.prompt(msg, function (input) {
-        if (format.test(input)) {
-            callback(input);
-        } else {
-            log.warn(errmsg);
-            exports.ask(msg, format, errmsg, callback);
+        if (format !== null) {
+            if (format.test(input)) {
+                callback(input);
+            } else {
+                log.warn(errmsg);
+                exports.ask(msg, format, errmsg, callback);
+            }
         }
+        else
+            callback(input);
     });
 }
 
@@ -54,9 +67,10 @@ exports.validate = function (msg, current, format, errmsg, callback) {
     if (current && format.test(current))
         callback(current);
     else {
-        if (current) {
+        if (current)
             log.warn(errmsg);
-        }
+        else
+            log.warn('Current variable value is null');
         exports.ask(msg, format, errmsg, callback);
     }
 }

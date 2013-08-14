@@ -2,7 +2,7 @@
   "name": "azuremobile-$",
   "version": "0.1.1",
   "description": "Azure Mobile Services $ Recipe",
-  "main": "$.js",
+  "main": "index.js",
   "licenses": [ { "type": "Apache", "url": "http://www.apache.org/licenses/LICENSE-2.0" } ],
   "dependencies": {},
   "repository": {

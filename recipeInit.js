@@ -118,20 +118,11 @@ module.exports.init = function (cli) {
                         recipe.async.forEachSeries(
                             files,
                             function (file, done) {
-                                if (file.file === 'newRecipe.js') {
-                                    recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, recipename + '.js', original, replacement,
-                                        function (err) {
-                                            if (err) return callback(err);
-                                            file.file = recipename + '.js';
-                                            done();
-                                        });
-                                } else {
-                                    recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, '', original, replacement,
-                                        function (err) {
-                                            if (err) return callback(err);
-                                            done();
-                                        });
-                                }
+                                recipe.copyRecipeFile(file.dir.replace(__dirname, ''), file.file, azureRecipe, '', original, replacement,
+                                    function (err) {
+                                        if (err) return callback(err);
+                                        done();
+                                    });
                             },
                             function (err) {
                                 if (err) return callback(err);
@@ -208,7 +199,7 @@ module.exports.init = function (cli) {
                     },
                     function (callback) {
                         // call recipe
-                        var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, recipename + '.js');
+                        var recipePath = recipe.path.join(__dirname, '..', 'azuremobile-' + recipename, 'index.js');
                         require(recipePath).execute(servicename, recipe, function (err) {
                             if (err) return callback(err);
                             callback();
